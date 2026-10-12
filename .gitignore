@@ -1,0 +1,21 @@
+# never commit weights, data, run outputs or credentials
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.zip
+*.npz
+*.npy
+*.parquet
+*.mp4
+*.pkl
+assets/
+runs/
+third_party/
+wandb/
+logs/
+.netrc
+.env
+*.log
