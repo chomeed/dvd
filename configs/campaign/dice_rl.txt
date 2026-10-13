@@ -1,0 +1,41 @@
+# The DICE-RL half of the reference campaign: 36 runs = 12 cells x 3 seeds (43 and 44 at 600k env steps, 45 at 1M).
+# One run per line for scripts/run_campaign.sh:   <config> <task> <seed> <env steps> [VAR=value ...]
+# The first 24 runs are the paper recipes (DVD with each task's default V training, and the Q baseline), the last 12 the
+# distill A/B twins (DISTILL= the task's non-default variant), in the order the reference queues launched them.
+# TD + distill cells (square_d0 without DISTILL, the others with DISTILL=tddistill) need the task's RoboMeter teacher.
+configs/dice_rl/dvd.sh square_d0 44 600000
+configs/dice_rl/q.sh square_d0 44 600000
+configs/dice_rl/dvd.sh threading_d0 44 600000
+configs/dice_rl/q.sh threading_d0 44 600000
+configs/dice_rl/dvd.sh square_d1 44 600000
+configs/dice_rl/q.sh square_d1 44 600000
+configs/dice_rl/dvd.sh hammer_cleanup_d1 44 600000
+configs/dice_rl/q.sh hammer_cleanup_d1 44 600000
+configs/dice_rl/dvd.sh square_d0 43 600000
+configs/dice_rl/q.sh square_d0 43 600000
+configs/dice_rl/dvd.sh threading_d0 43 600000
+configs/dice_rl/q.sh threading_d0 43 600000
+configs/dice_rl/dvd.sh square_d1 43 600000
+configs/dice_rl/q.sh square_d1 43 600000
+configs/dice_rl/dvd.sh hammer_cleanup_d1 43 600000
+configs/dice_rl/q.sh hammer_cleanup_d1 43 600000
+configs/dice_rl/dvd.sh square_d0 45 1000000
+configs/dice_rl/q.sh square_d0 45 1000000
+configs/dice_rl/dvd.sh threading_d0 45 1000000
+configs/dice_rl/q.sh threading_d0 45 1000000
+configs/dice_rl/dvd.sh square_d1 45 1000000
+configs/dice_rl/q.sh square_d1 45 1000000
+configs/dice_rl/dvd.sh hammer_cleanup_d1 45 1000000
+configs/dice_rl/q.sh hammer_cleanup_d1 45 1000000
+configs/dice_rl/dvd.sh square_d0 44 600000 DISTILL=tdonly
+configs/dice_rl/dvd.sh threading_d0 44 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh square_d1 44 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh hammer_cleanup_d1 44 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh square_d0 43 600000 DISTILL=tdonly
+configs/dice_rl/dvd.sh threading_d0 43 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh square_d1 43 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh hammer_cleanup_d1 43 600000 DISTILL=tddistill
+configs/dice_rl/dvd.sh square_d0 45 1000000 DISTILL=tdonly
+configs/dice_rl/dvd.sh threading_d0 45 1000000 DISTILL=tddistill
+configs/dice_rl/dvd.sh square_d1 45 1000000 DISTILL=tddistill
+configs/dice_rl/dvd.sh hammer_cleanup_d1 45 1000000 DISTILL=tddistill

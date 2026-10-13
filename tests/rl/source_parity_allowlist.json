@@ -1,0 +1,620 @@
+{
+ "generated_with": {
+  "python": "3.12",
+  "live_commit": "af8ba3a"
+ },
+ "files": {
+  "__init__.py": [],
+  "aggregate_rollouts.py": [
+   {
+    "why": "path independence: the default reference dataset (a coffee_d0 path under the research machine's root) is gone with its import",
+    "live_lines": 1,
+    "live_sha256": "42c1d29933f94768f325532106e62aff16a91f11aaf0f0a231b9b5e3a01b771b",
+    "new": []
+   },
+   {
+    "why": "path independence: --reference-root is required instead of defaulting to that dataset",
+    "live_lines": 1,
+    "live_sha256": "c589189e5b46f4e204407d5736d1aebdf66fb9346c846618b6747e977016bf77",
+    "new": [
+     "    parser.add_argument('--reference-root', type=Path, required=True, help=\"the task's demo dataset (file packing)\")"
+    ]
+   }
+  ],
+  "baselines/__init__.py": [],
+  "baselines/build_demo_store.py": [
+   {
+    "why": "path independence: CACHE_ROOT imported for the two defaults below",
+    "live_lines": 1,
+    "live_sha256": "6004ce965b6a7584eb656cfd2b2ef86f6d7e24650cd0095abc15665c26e92ec3",
+    "new": [
+     "from ..common import CACHE_ROOT, TASKS, FrozenPolicyPrior, StateScaler, find_latest_checkpoint"
+    ]
+   },
+   {
+    "why": "path independence: --cache-dir / --pixel-cache-dir default to $CACHE_ROOT/dsrl_demo_store and $CACHE_ROOT/pixel_cache instead of absolute paths of the research machine",
+    "live_lines": 2,
+    "live_sha256": "c6f058d21f36175f20256b2d10e7dccf822490051893cd990bfe4617532a0047",
+    "new": [
+     "    p.add_argument('--cache-dir', default=os.environ.get('DSRL_DEMO_CACHE', str(CACHE_ROOT / 'dsrl_demo_store')))",
+     "    p.add_argument('--pixel-cache-dir', default=os.environ.get('PIXEL_CACHE_DIR', str(CACHE_ROOT / 'pixel_cache')))"
+    ]
+   }
+  ],
+  "baselines/dsrl_demos.py": [],
+  "baselines/dsrl_dino.py": [
+   {
+    "why": "path independence: CACHE_ROOT imported for the pixel-cache / demo-store defaults",
+    "live_lines": 1,
+    "live_sha256": "d89a0cbb72a01884ab48d93c71ce563dfa599c18fe0f07cfad08fa605178aadc",
+    "new": [
+     "from ..common import CACHE_ROOT, TASKS, FrozenPolicyPrior, StateScaler, find_latest_checkpoint, set_seed"
+    ]
+   },
+   {
+    "why": "message text only: --activation help no longer dates the tanh runs",
+    "live_lines": 1,
+    "live_sha256": "565bbd84803d3c04de348c3f287de7f6429126849e1a9496df7e6b985e885601",
+    "new": [
+     "    g.add_argument('--activation', choices=('mish', 'tanh'), default='mish', help=\"hidden activation of the actor AND the critics (SB3 takes one activation_fn for the whole policy). mish matches the residual arm's common.MLP and the other machine's DSRL-NA; tanh is the original default. Recorded in config.json so evals rebuild it correctly\")"
+    ]
+   },
+   {
+    "why": "bug fix kept from the supplementary release: the start-up guard no longer demands --value-distill-robometer when --no-value-distill is set (the research tree still does, so its launcher passes a spool to TD-only arms)",
+    "live_lines": 2,
+    "live_sha256": "25c93d7aa1d4ef8fc07150ea4f9094d8c5b05eb1c4fd6646540f7d2850f8a16d",
+    "new": [
+     "    if not args.q_critic and (args.dino_wm_ckpt is None or (args.value_distill_robometer is None and (not args.no_value_distill))):",
+     "        raise SystemExit('the DVD path needs --dino-wm-ckpt and --value-distill-robometer (unless --no-value-distill)')"
+    ]
+   },
+   {
+    "why": "package layout: dvd_term.py is a module of the package, so the sys.path insertion of the research tree's 0811/ directory is gone",
+    "live_lines": 2,
+    "live_sha256": "04328599123c4dca3cb6c6c9efd2fff9304fd5aa244b555eeebfc35741f2767d",
+    "new": [
+     "        from ..dvd_term import DvdTerm"
+    ]
+   },
+   {
+    "why": "path independence: pixel cache and demo store default to $CACHE_ROOT/pixel_cache and $CACHE_ROOT/dsrl_demo_store (research tree: a directory under the home directory, and demo_store_cache beside the run directories); PIXEL_CACHE_DIR / DSRL_DEMO_CACHE still override",
+    "live_lines": 2,
+    "live_sha256": "07bf524b62bc9983e800c0514fd5a8d4b0064f6f7ddcb00c7fda33abd1f7b0b1",
+    "new": [
+     "        cache = Path(os.environ.get('PIXEL_CACHE_DIR', str(CACHE_ROOT / 'pixel_cache')))",
+     "        model.replay_buffer.demo = DemoStore.build(dataset_root=task_cfg['dataset_root'], pixel_cache_path=cache / f\"pixel_cache_{Path(task_cfg['dataset_root']).name}_{dino_dvd.IMAGE_SIZE}.npy\", flow=flow, scaler=scaler, action_steps=args.action_steps, step_penalty=args.step_penalty, device=device, capacity=int(args.expert_capacity), cache_dir=Path(os.environ.get('DSRL_DEMO_CACHE', str(CACHE_ROOT / 'dsrl_demo_store'))), prior_id=str(checkpoint))"
+    ]
+   }
+  ],
+  "baselines/dsrl_mimicgen.py": [
+   {
+    "why": "path independence: os imported to read DSRL_ROOT",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "import os"
+    ]
+   },
+   {
+    "why": "path independence: the stable-baselines3 fork is found through DSRL_ROOT (default: the dsrl directory beside the file, as before)",
+    "live_lines": 1,
+    "live_sha256": "338aad0e6dbcd577523e81507b8056907683c2d180fdc2fab2ec320bdd08de72",
+    "new": [
+     "_SB3 = Path(os.environ.get('DSRL_ROOT', Path(__file__).resolve().parent / 'dsrl')) / 'stable-baselines3'"
+    ]
+   },
+   {
+    "why": "message text only: missing-fork error points at DSRL_ROOT and at environment.md section 3 (the checkout commands) instead of a git submodule command",
+    "live_lines": 1,
+    "live_sha256": "46a81ec46cc45705f38ab0a36c6251835153e1b38d84b1f7941bc5bdaccf6e0e",
+    "new": [
+     "    raise SystemExit(f\"DSRL's stable-baselines3 fork is missing at {_SB3}. Clone the DSRL repository with its stable-baselines3 submodule and set DSRL_ROOT to it (environment.md, section 3).\")"
+    ]
+   },
+   {
+    "why": "message text only: --action-magnitude help says which README recommends 1.5 (the DSRL repository's; this repository's README is not it)",
+    "live_lines": 1,
+    "live_sha256": "e7a8983bb4c0859a3a260baea4f9a6a99f26106a880ae8f68bc0a713c0f0f748",
+    "new": [
+     "    p.add_argument('--action-magnitude', type=float, default=None, help=\"noise box. Default 1.0 for na (the reference NA actor is squashed into the env's [-1, 1] action box) and 1.5 for sac (the DSRL repository's README)\")"
+    ]
+   },
+   {
+    "why": "message text only: --value-model help no longer names a V directory of the research tree; it says what the directory holds (the parser is shared with dsrl_dino)",
+    "live_lines": 1,
+    "live_sha256": "88b98c665688d375dfd1641e5bd5af6adb96aa8e5fe34f87c2e299ae65e87535",
+    "new": [
+     "    g.add_argument('--value-model', type=Path, default=None, help='V directory (weights/, config.json, state_scaler.json): a state-space V here, the feature-space $CKPT_ROOT/value/<V dir> in dsrl_dino, which shares this parser')"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): --resume stops on a resume bundle of the pre-rename code, whose V / world-model file sits under the old key and would be skipped silently; a new bundle passes unchanged (state-space DSRL, not a campaign arm)",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "        from ..legacy import refuse_unconverted_resume_state",
+     "        refuse_unconverted_resume_state(state, state_path)"
+    ]
+   },
+   {
+    "why": "package layout: dvd_term.py is a module of the package, so the sys.path insertion of the research tree's 0811/ directory is gone",
+    "live_lines": 2,
+    "live_sha256": "04328599123c4dca3cb6c6c9efd2fff9304fd5aa244b555eeebfc35741f2767d",
+    "new": [
+     "        from ..dvd_term import DvdTerm"
+    ]
+   }
+  ],
+  "baselines/eval_dsrl_ckpt.py": [
+   {
+    "why": "legacy layer (new in this repository)",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "from .. import legacy"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): --base-output and --dataset-root overrides for the two machine-specific inputs of an evaluation, and --config for a checkpoint that does not sit in its run directory (default unchanged: <run>/config.json)",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "    ap.add_argument('--base-output', type=Path, default=None, help=\"prior run directory, overriding base_output in the run's config.json (an absolute path of the training machine). Default: that path if it exists, else $CKPT_ROOT/priors/<its name>\")",
+     "    ap.add_argument('--dataset-root', type=Path, default=None, help=\"the task's LeRobot dataset (meta/stats.json feeds the state scaler); default $DATA_ROOT/mimicgen_<task>_224x224\")",
+     "    ap.add_argument('--config', type=Path, default=None, help=\"the run's config.json. Default: <run>/config.json with <run> two levels above the real checkpoint file (--ckpt is resolved through symlinks). With --config, the run is the directory holding that file\")"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): config.json of a run trained by the research tree is upgraded (method tag, key names), a new config passes through unchanged. Without --config the run directory is found as before (two levels above the resolved checkpoint); a missing config.json now exits with one message that says so instead of a bare FileNotFoundError",
+    "live_lines": 2,
+    "live_sha256": "f1450678d121fd3bea5b8dde922638782de92a495589aae434747f290457a3aa",
+    "new": [
+     "    run = a.config.absolute().parent if a.config else a.ckpt.resolve().parents[1]",
+     "    config_path = a.config or run / 'config.json'",
+     "    if not config_path.is_file():",
+     "        raise SystemExit(f\"[eval-dsrl] no config.json at {config_path}. --ckpt {a.ckpt} resolves to {a.ckpt.resolve()} and the run directory is taken to be two levels above that real file. Checkpoints must be real files inside <run>/checkpoints/ (not links into another store such as the Hugging Face hub cache), or pass --config <the run's config.json>\")",
+     "    cfg = legacy.upgrade_config(json.loads(config_path.read_text()))"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): the stored prior path is used if it exists, else resolved under $CKPT_ROOT/priors; --base-output wins",
+    "live_lines": 1,
+    "live_sha256": "a889304e96115e09547250b9a82b2a02a70abdcb864c402c2e35ee1a00a7590b",
+    "new": [
+     "    base_output = legacy.remap_asset_path(cfg['base_output'], 'prior', a.base_output)",
+     "    prior = FrozenPolicyPrior(cfg['task'], find_latest_checkpoint(base_output), cfg['action_steps'], cfg['inference_steps'])"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): --dataset-root override for the state scaler's stats (default unchanged)",
+    "live_lines": 1,
+    "live_sha256": "b7ed443a02859b385959166f8a3d9d94dc65522575eb1a18655c99bf0739ea19",
+    "new": [
+     "    env = DinoFrameEnv(cfg['task'], flow, StateScaler(a.dataset_root or task_cfg['dataset_root']), seed=a.seed_start, variant='na', magnitude=cfg['action_magnitude'], step_penalty=cfg['step_penalty'], dense_reward=cfg['env_dense_reward'], horizon=cfg['episode_horizon'])"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): load_data=False, the pickled class attributes of the .zip were always discarded here, and in an old run they reference a module name that no longer exists (replay_buffer_class); the weights read are the same",
+    "live_lines": 1,
+    "live_sha256": "cd5f2aa8b86b88e914999ce5f2d8ba8734a9ab3896ce777d21e32ff9bf159332",
+    "new": [
+     "    _, params, _ = load_from_zip_file(str(a.ckpt), load_data=False, device=device)"
+    ]
+   }
+  ],
+  "common.py": [
+   {
+    "why": "path independence and task table: ASSET_ROOT / DATA_ROOT / CKPT_ROOT / CACHE_ROOT replace the research machine's root; TASKS keeps the four paper tasks (coffee_d0, mugcleanup_d0, three_piece_assembly_d0 dropped) with dataset_root = $DATA_ROOT/mimicgen_<task>_224x224 and the _statefix priors the campaign uses as defaults (only read when --base-output is omitted)",
+    "live_lines": 2,
+    "live_sha256": "deeebe75ff5cf558d298b99f9811eec4ef9fb19e4c2083c862f1dc72faaf6369",
+    "new": [
+     "_ASSETS = Path(os.environ.get('ASSET_ROOT', Path(__file__).resolve().parents[2] / 'assets'))",
+     "DATA_ROOT = Path(os.environ.get('DATA_ROOT', _ASSETS / 'datasets'))",
+     "CKPT_ROOT = Path(os.environ.get('CKPT_ROOT', _ASSETS / 'checkpoints'))",
+     "CACHE_ROOT = Path(os.environ.get('CACHE_ROOT', _ASSETS / 'cache'))",
+     "TASKS = {'hammer_cleanup_d1': {'dataset_root': DATA_ROOT / 'mimicgen_hammer_cleanup_d1_224x224', 'il_output': CKPT_ROOT / 'priors/hammer_cleanup_d1_35k_statefix', 'state_dim': 37, 'horizon': 500}, 'threading_d0': {'dataset_root': DATA_ROOT / 'mimicgen_threading_d0_224x224', 'il_output': CKPT_ROOT / 'priors/threading_d0_55k_statefix', 'state_dim': 37, 'horizon': 400}, 'square_d1': {'dataset_root': DATA_ROOT / 'mimicgen_square_d1_224x224', 'il_output': CKPT_ROOT / 'priors/square_d1_45k_statefix', 'state_dim': 26, 'horizon': 400}, 'square_d0': {'dataset_root': DATA_ROOT / 'mimicgen_square_d0_224x224', 'il_output': CKPT_ROOT / 'priors/square_d0_40k_rs9', 'state_dim': 23, 'horizon': 400}}"
+    ]
+   },
+   {
+    "why": "message text only: the StateScaler notice no longer names a script of the research tree",
+    "live_lines": 1,
+    "live_sha256": "d4e06c004b14c93f0f20fa42f72a6aa52230ce83fcb4cdc7dd785442ec32603d",
+    "new": [
+     "                print(f'[StateScaler] {name}: quantiles collapsed on dims {self.degenerate_dims}; using min/max there. Consider repairing meta/stats.json.', flush=True)"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): load_agent_checkpoint (evaluation / recording, never the trainer's --resume) upgrades an old payload; a new payload passes through unchanged",
+    "live_lines": 1,
+    "live_sha256": "d0c7d09589268c4fa94991ed7d534f2499e7a451bec58190a50fc0e6f202744d",
+    "new": [
+     "    from .legacy import upgrade_checkpoint",
+     "    payload = upgrade_checkpoint(torch.load(path, map_location=device, weights_only=False))"
+    ]
+   }
+  ],
+  "critical.py": [],
+  "dino_dvd.py": [
+   {
+    "why": "message text only: the V input-width error names this repository's V fitter instead of a script of the research tree",
+    "live_lines": 1,
+    "live_sha256": "64ec8b2306dd199b9f075f6e871d22976a53f55e17015c9791faa53246bac9ce",
+    "new": [
+     "    raise ValueError(f'--value-model has input_dim={width}, which is neither pooled_dim({pool!r})={pooled} nor {pooled + STATE_DIM} (pooled + 9-dim raw proprio). Refit it with value/fit_v.sh (value/fit_v_mqattn.py), or pass the --dino-pool that produced it.')"
+    ]
+   }
+  ],
+  "dino_wm.py": [
+   {
+    "why": "path independence: HF_HOME is no longer defaulted at import to a scratch directory of the research machine; it comes from the environment",
+    "live_lines": 1,
+    "live_sha256": "97af313d6c0dce7d151d8fc0852214fb97e196684b16b435f3ef929265df81e4",
+    "new": []
+   },
+   {
+    "why": "message text only",
+    "live_lines": 1,
+    "live_sha256": "0fc5673b73dba1b052622f57e81b05f1b2b47a0b2a09e6b39d25ffe3d89d964d",
+    "new": [
+     "        raise RuntimeError(f'dino-wm checkpoint has width {d}; known trunks are {sorted(_TRUNK_BY_DIM)}. Add it to _TRUNK_BY_DIM and make sure the matching facebook/dinov2-* is in HF_HOME (or allow network access).')"
+    ]
+   },
+   {
+    "why": "path independence: the default checkpoint constants (a Hugging Face snapshot and a flow model under the research machine's scratch) are gone; DEFAULT_CKPT is None",
+    "live_lines": 4,
+    "live_sha256": "2fe6b935a3f8bec29f18805fbe29392f5e612b32385aebc544a1049d0436d5e0",
+    "new": [
+     "DEFAULT_CKPT = None"
+    ]
+   },
+   {
+    "why": "consequence of DEFAULT_CKPT = None: loading without a checkpoint raises instead of reading the removed default (every launcher passes --dino-wm-ckpt)",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "    if ckpt is None:",
+     "        raise ValueError('a DINO-WM checkpoint is required (--dino-wm-ckpt)')"
+    ]
+   },
+   {
+    "why": "message text only: a repository name removed from the error",
+    "live_lines": 1,
+    "live_sha256": "ee1ca6c62a80c48d2e7b6fa3422cc3cbcdcec469234b6a2ed2978804f4180a25",
+    "new": [
+     "        raise RuntimeError(f'dino-wm checkpoint {ckpt} is depth={d_depth} mlp_dim={d_mlp} (not the default {depth}/{mlp_dim}). Pass --dino-wm-heads too: head count CANNOT be inferred from the weights and a wrong value fails silently.')"
+    ]
+   }
+  ],
+  "dino_wm_any.py": [],
+  "dvd_term.py": [
+   {
+    "why": "path independence: the legacy state-space dynamics directory comes from DVD_DYNAMICS_DIR (unused by the campaign: --dvd-dynamics dino_wm passes the world model in)",
+    "live_lines": 2,
+    "live_sha256": "3aad6f0012adf1d8490e62634e732da38971f30948a4c9c14a481b1b1c8b1c02",
+    "new": [
+     "DYNAMICS_DIR = Path(os.environ.get('DVD_DYNAMICS_DIR', 'dynamics_model'))"
+    ]
+   },
+   {
+    "why": "path independence: construction no longer prepends research-tree directories to sys.path",
+    "live_lines": 1,
+    "live_sha256": "28890e60f02b7f758474bfee19fabc2bbc1cf8df9c6494b9e60ef15384170cf2",
+    "new": []
+   },
+   {
+    "why": "the dynamics directory is put on sys.path only inside _load_dynamics, the one place that imports from it",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "        sys.path.insert(0, str(DYNAMICS_DIR))"
+    ]
+   }
+  ],
+  "expert.py": [
+   {
+    "why": "path independence: the seghead expert cache lives under $CACHE_ROOT (path of a branch the campaign never takes)",
+    "live_lines": 1,
+    "live_sha256": "1a05df3222a98e3090878e250b7cafdd65a596d594c0ac9b099702bddac4de39",
+    "new": [
+     "        _cache = Path(os.environ.get('CACHE_ROOT', 'cache')) / 'seghead_expert_cache' / _key"
+    ]
+   }
+  ],
+  "gradvar.py": [],
+  "pixel.py": [],
+  "pixel_cache.py": [
+   {
+    "why": "path independence: the research tree's root is no longer put on sys.path",
+    "live_lines": 2,
+    "live_sha256": "286a1ef3aedf82ae28d862860bbe520598a79d94f8911eb5af5103f7e1d37ae8",
+    "new": []
+   },
+   {
+    "why": "path independence: DATASET is a required environment variable instead of defaulting to a coffee_d0 path. The interface stays two environment variables; --help prints the usage and an unset DATASET exits with a one-line usage instead of a KeyError traceback (sys is imported for argv)",
+    "live_lines": 1,
+    "live_sha256": "0e34e5ade709e467a97375cd6ce3a87456ec7f3b8cdc2e23d627bd15bd59a291",
+    "new": [
+     "USAGE = 'usage: DATASET=<LeRobot dataset dir> [OUT=<file.npy>] python -m online_rl_mimicgen.pixel_cache'",
+     "if __name__ == '__main__' and len(sys.argv) > 1:",
+     "    if sys.argv[1] in ('-h', '--help'):",
+     "        print(f'{USAGE}\\n\\n{__doc__}')",
+     "        raise SystemExit(0)",
+     "    raise SystemExit(f\"{USAGE}   (no arguments: got {' '.join(sys.argv[1:])!r})\")",
+     "if 'DATASET' not in os.environ:",
+     "    raise SystemExit(f'{USAGE}   (DATASET is not set)')",
+     "DATASET = Path(os.environ['DATASET'])"
+    ]
+   },
+   {
+    "why": "the output's parent directory is created (a fresh $CACHE_ROOT has none)",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "    OUT.parent.mkdir(parents=True, exist_ok=True)"
+    ]
+   }
+  ],
+  "pool_mqattn.py": [],
+  "record_rollouts.py": [
+   {
+    "why": "path independence: the default reference dataset is gone",
+    "live_lines": 2,
+    "live_sha256": "d1bcce01981916ebdfa5ac0c0a759e67fabd8a9cf6e39e72db28f4fbbd895913",
+    "new": []
+   },
+   {
+    "why": "module not shipped: the coffee holder-jitter mixin (0811/jitter_env) is not shipped; --holder-sigma raises instead of importing it",
+    "live_lines": 3,
+    "live_sha256": "26884b6acb8b7fd642079bbb6e20a6bda8deacc507281c9bca62a3f8143c4c8a",
+    "new": [
+     "        if holder_sigma:",
+     "            raise ValueError('--holder-sigma (coffee holder jitter) is not part of this release')"
+    ]
+   },
+   {
+    "why": "module not shipped: env class without the jitter mixin",
+    "live_lines": 1,
+    "live_sha256": "54290631e66c22fa0a7f721f49b496ae405d053c90121018fd4bc0fd15d67201",
+    "new": [
+     "        class _Env(base_env):"
+    ]
+   },
+   {
+    "why": "module not shipped: holder_sigma is no longer passed to the env",
+    "live_lines": 1,
+    "live_sha256": "3dbcc211c011735c0f700c95af5c34a4a6cc501fd0667992cab01f7c27d4c3de",
+    "new": [
+     "        self._env = _Env(**kwargs)"
+    ]
+   },
+   {
+    "why": "message text only: --repo-prefix example",
+    "live_lines": 1,
+    "live_sha256": "f42e7f2c535486454fdbfe6f621bd040b1cac66654468b07588e5013f503af12",
+    "new": [
+     "    parser.add_argument('--repo-prefix', required=True, help='e.g. $HF_NAMESPACE/mimicgen_square_d0_224x224_mtdit_flow_40k')"
+    ]
+   },
+   {
+    "why": "path independence: --reference-root is required",
+    "live_lines": 1,
+    "live_sha256": "c589189e5b46f4e204407d5736d1aebdf66fb9346c846618b6747e977016bf77",
+    "new": [
+     "    parser.add_argument('--reference-root', type=Path, required=True, help=\"the task's demo dataset (feature schema, fps and task string are copied from it)\")"
+    ]
+   }
+  ],
+  "robometer_distill.py": [],
+  "train_online.py": [
+   {
+    "why": "path independence: CACHE_ROOT is imported instead of the research machine's WORKSPACE root",
+    "live_lines": 1,
+    "live_sha256": "1ca89ad38d0cafb35e56f627e0ee3ea7808dc36c996d7d856fbe866e7f866e86",
+    "new": [
+     "from .common import CACHE_ROOT, GOAL_RELATIVE_MAPS, TASKS, CriticEnsemble, FrozenPolicyPrior, GoalRelativeScaler, ReplayBuffer, ResidualActor, StateScaler, TrainConfig, check_state_repr, concat_batches, fill_mc_return, fill_episode_len, fill_nstep, find_latest_checkpoint, save_checkpoint, save_video, set_seed, soft_update"
+    ]
+   },
+   {
+    "why": "module not shipped: module-scope imports of seghead and latent56 removed (no side effects; their flags are refused below)",
+    "live_lines": 2,
+    "live_sha256": "cd4c5978fc3a02118691972752daebabb1751c0d56f6d71733f9531d38ec71e7",
+    "new": []
+   },
+   {
+    "why": "path independence: the pixel cache defaults to $CACHE_ROOT/pixel_cache/<name> (PIXEL_CACHE still overrides)",
+    "live_lines": 1,
+    "live_sha256": "195d582943bb23a42de3b10d577d54c8207b2d3b92895704b46a3bdc135a81ef",
+    "new": [
+     "        cache_path = Path(os.environ.get('PIXEL_CACHE', CACHE_ROOT / 'pixel_cache' / cache_name))"
+    ]
+   },
+   {
+    "why": "message text only: the scaler-audit error says what to repair in meta/stats.json instead of naming a script of the research tree",
+    "live_lines": 1,
+    "live_sha256": "559ed5bf74a6bfcf4c0be53552ce767e9b57fd8e399826fe773672b9e22c1a4f",
+    "new": [
+     "            raise RuntimeError(f\"StateScaler saturates dims {_audit['saturated_dims']} on >50% of demo frames while those dims genuinely vary -- the policy cannot see them. Repair the observation.state q01 / q99 of meta/stats.json (recompute them from the data) before training.\")"
+    ]
+   },
+   {
+    "why": "message text only: the attnpool readout error no longer names two fitters of the research tree (not a campaign readout)",
+    "live_lines": 1,
+    "live_sha256": "2b6b59b455f1b9417fc9cec2b258d9b9c18e0bb8f32474d5a547c858ffdeb593",
+    "new": [
+     "                raise FileNotFoundError(f'--dino-pool attnpool needs {_ap}: the readout saved beside the V it was fitted with. This repository ships no fitter for it (value/fit_v_mqattn.py fits --dino-pool mqattn); a V whose pooling is fused into the value head will NOT load')"
+    ]
+   },
+   {
+    "why": "message text only: the xattn readout error no longer names a fitter of the research tree (not a campaign readout)",
+    "live_lines": 1,
+    "live_sha256": "e9379bce7024296202f5d4b6b6c7017a7f3a8415db4af0f1846ab82e3bab67f1",
+    "new": [
+     "                raise FileNotFoundError(f'--dino-pool xattn needs {_xp}: the readout saved beside the V it was fitted with. This repository ships no fitter for it (value/fit_v_mqattn.py fits --dino-pool mqattn). A V directory fitted for mean or attnpool will not do: its value head was trained on a different pooled vector.')"
+    ]
+   },
+   {
+    "why": "message text only: the mqattn error names this repository's V fitter",
+    "live_lines": 1,
+    "live_sha256": "822c273a06614d6dab7208817c7c603016bc9e69b543df949609b146ca9793b2",
+    "new": [
+     "                raise FileNotFoundError(f'--dino-pool mqattn needs {_mp}; fit it with value/fit_v_mqattn.py (it writes the module beside the V it was fitted with, exactly as --pool attnpool writes attn_pool.pt and --pool xattn writes xattn_pool.pt). A V directory fitted for mean, attnpool or xattn will NOT do: its value head was trained on a different pooled vector, and the per-view K=4 fit is the same 777 width as the mean one.')"
+    ]
+   },
+   {
+    "why": "message text only: the soft-argmax readout error no longer names a scratch script",
+    "live_lines": 1,
+    "live_sha256": "67a4c5915b3cfb395ee22dc8dabc0a3854b0f9673448ae299cee59af94bfbcd8",
+    "new": [
+     "                raise FileNotFoundError(f'--value-pool sargmax needs {_sp} (the fitted keypoint readout beside V); the soft-argmax readout is not part of this release')"
+    ]
+   },
+   {
+    "why": "package layout: dvd_term.py is a module of the package, so the sys.path insertion of the research tree's 0811/ directory is gone",
+    "live_lines": 2,
+    "live_sha256": "0be02fdcc15252a5c26f3888c7b9de988d6efcc68bec11ca9e962580139976f5",
+    "new": [
+     "        from .dvd_term import DvdTerm"
+    ]
+   },
+   {
+    "why": "message text only: the stochastic-f error no longer points at a file of the research tree's state-dynamics directory",
+    "live_lines": 1,
+    "live_sha256": "2577cc5f94d65c3533c61238f0e9844a22024a975428b4c0afd206d1ea080789",
+    "new": [
+     "            raise SystemExit(f'[dvd] {type(dvd_term.dynamics).__name__} is a feature-space STOCHASTIC f (generative={dvd_term.generative} flow={_f_is_flow}) but exposes no sample_anchored(s, a_theta, a_data, z_next), so DvdTerm.anchored is False and every rollout would integrate from FRESH NOISE -- a silently wrong actor gradient behind healthy-looking metrics. Give the adapter sample_anchored (infer xi under no_grad, subtract the DETACHED offset z_next - f(s, a_data, xi), then re-sample at a_theta with the SAME xi through a GRAD-CARRYING integrator), or run the deterministic MSE head instead.')"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): --dvd-dynamics-init stops on an unconverted checkpoint of the pre-rename code with the converter command; before, the next line's assert blamed a missing extra.dvd_dynamics on the run not having fine-tuned f. A new or converted checkpoint passes unchanged",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "            from .legacy import refuse_unconverted_checkpoint",
+     "            refuse_unconverted_checkpoint(_di, config.dvd_dynamics_init, '--dvd-dynamics-init')"
+    ]
+   },
+   {
+    "why": "legacy layer (new in this repository): --resume stops on an unconverted checkpoint of the pre-rename code with the converter command. Its fine-tuned world model and that optimiser sit under the old names, so the loader below would skip both silently and continue from the pretrained world model. A new or converted checkpoint passes unchanged",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "            from .legacy import refuse_unconverted_checkpoint",
+     "            refuse_unconverted_checkpoint(pay, ck_path, '--resume')"
+    ]
+   },
+   {
+    "why": "message text only: --init-actor-from help no longer names a script of the research tree",
+    "live_lines": 1,
+    "live_sha256": "850acad0a5f909887bacf10a72195966dda2fd37eb82d9cb895015d876ec15b4",
+    "new": [
+     "    parser.add_argument('--init-actor-from', default='', help='path to a checkpoint whose ACTOR weights warm-start this run (e.g. an offline actor-pretraining run). Loads the actor only; the critic is untouched unless --init-critic-from is also given.')"
+    ]
+   },
+   {
+    "why": "message text only: --stochastic-residual help no longer carries a date",
+    "live_lines": 1,
+    "live_sha256": "2164cd9a405a36752db80a7322c5105b849490ea1128b91f85aee95dabf5c40f",
+    "new": [
+     "    parser.add_argument('--stochastic-residual', dest='deterministic_residual', action='store_false', help=\"keep the actor's Gaussian head. On dice_rl this makes the contraction term penalize mean^2 + sigma^2, which collapses sigma onto --log-std-min; the sigma-related flags only do anything in this mode\")"
+    ]
+   },
+   {
+    "why": "message text only: --seg-terminate-patience help no longer names two scripts of the research tree (the flag is off in every campaign cell)",
+    "live_lines": 1,
+    "live_sha256": "ad6c5c97ef75e7428884422a2129c663655e0fd90c93c75e262bff91fb787f56",
+    "new": [
+     "    parser.add_argument('--seg-terminate-patience', type=int, default=0, help=\"end a TRAINING episode once the needle->tripod offset has failed to approach the offline segmentation's endpoint reference for N primitive steps (0 = off). A CAUSAL APPROXIMATION of the offline rule, which is an argmin over the whole remaining trajectory and cannot be evaluated online. Calibrated offline on threading_d0: at 16 it fires a median 16 frames late and keeps 31.5%% of the episode vs the offline rule's 38.5%%. Stored as a TRUNCATION, never a terminal. Evaluation rollouts are unaffected.\")"
+    ]
+   },
+   {
+    "why": "message text only: --value-model help gives $CKPT_ROOT/value/<V dir> as the example instead of a directory of the research tree",
+    "live_lines": 1,
+    "live_sha256": "d27e9b64831cc6909c65d0afb8cc1b8d00dff7242d1de217281be7de3ca9893a",
+    "new": [
+     "    parser.add_argument('--value-model', default=None, help='directory of the offline value model (weights/, config.json, state_scaler.json), e.g. $CKPT_ROOT/value/<V dir>. Omit for the no-V control')"
+    ]
+   },
+   {
+    "why": "message text only: the argument-group title shown by --help no longer carries the research tree's dated-directory tag",
+    "live_lines": 1,
+    "live_sha256": "ae9b835a187543d0d3b16f2ab07310a29a2800fbc0f6f77c41e2cabac45d2f81",
+    "new": [
+     "    critical = parser.add_argument_group('critical-state replay')"
+    ]
+   },
+   {
+    "why": "message text only: the argument-group title shown by --help no longer carries the research tree's dated-directory tag",
+    "live_lines": 1,
+    "live_sha256": "4d523be42367bb2c453701c27baf1da506a6518655bd8efc3e468eb6e139d1fe",
+    "new": [
+     "    dvd = parser.add_argument_group('DVD(1) actor gradient')"
+    ]
+   },
+   {
+    "why": "message text only: --dvd-dynamics help names this repository's V fitter and $DVD_DYNAMICS_DIR instead of two paths of the research tree, and says that dino_wm is what the campaign uses",
+    "live_lines": 1,
+    "live_sha256": "63497bd2d27b61e06fad15039da49fbaf95c87be2811dffe349356f045070f3d",
+    "new": [
+     "    dvd.add_argument('--dvd-dynamics', default='model_residual', help=\"the literal 'dino_wm' for the DINOv2 pixel world model (every campaign cell), or the stem of a state-space dynamics checkpoint $DVD_DYNAMICS_DIR/dynamics_<stem>.pt (not shipped here). dino_wm predicts PATCH FEATURES, not a state: it needs a feature-V from value/fit_v_mqattn.py, it emits dvd_feat_mse instead of dvd_pod_mm, and --exploration-gate-mm / --dvd-mode replay / --mbpo-weight / --bc-filter-source dvd are refused with it rather than reinterpreted.\")"
+    ]
+   },
+   {
+    "why": "message text only: the argument-group title shown by --help no longer carries the research tree's dated-directory tag",
+    "live_lines": 1,
+    "live_sha256": "481d6da3d9fd9c85b6cacaac08196df66dfbdae288583f4c5c372c0f8f09c6d0",
+    "new": [
+     "    ins = parser.add_argument_group('insertion-phase-only task')"
+    ]
+   },
+   {
+    "why": "message text only: --bon-lookahead help names eval/eval_bon16.py and what it does with depth 2 (refuses it) instead of the research tree's evaluator",
+    "live_lines": 1,
+    "live_sha256": "7f15a3a73fd6a55d52bf0b86c2483f6b338d35f8002be7f54c8ba34283b43287",
+    "new": [
+     "    parser.add_argument('--bon-lookahead', type=int, choices=(1, 2), default=1, help=\"best-of-N scoring depth for --bon-source dvd. 1 (default, historical) = gamma^8 V(f(ctx, s, a)). 2 = gamma^16 V after f(candidate) then f(the candidate's own prior continuation), with the same chunk-2 logic as --dvd-chunks 2 (context [z_t, zhat_t+8], predicted proprio). Needs --dvd-dynamics dino_wm --dino-wm-state-head --dvd-proprio-source predicted. Applies to collection; eval/eval_bon16.py scores depth 1 only and refuses a depth-2 checkpoint. Cost: one extra WM forward over the N candidates per decision.\")"
+    ]
+   },
+   {
+    "why": "message text only: --dino-wm-arch help no longer names a repository",
+    "live_lines": 1,
+    "live_sha256": "afd6da4c1978a5861d783bb07a2cb8dc58b5a80c645f6e0233538fed2b778b00",
+    "new": [
+     "    parser.add_argument('--dino-wm-arch', default='', help='predictor shape of the dino-wm checkpoint as \"depth,heads,mlp_dim\". Empty = the published 6,6,2048. Required for a non-baseline checkpoint: depth and mlp_dim are inferred from the weights and verified, but HEAD COUNT is not recoverable from any tensor shape, so a wrong value silently regroups attention.')"
+    ]
+   },
+   {
+    "why": "message text only: --dvd-gate-source help no longer names an analysis script of the research tree",
+    "live_lines": 1,
+    "live_sha256": "23ec49fc39b50933fafc4b50ed0beed913fe1abc5e05228804d12efac36e28d8",
+    "new": [
+     "    parser.add_argument('--dvd-gate-source', choices=('eef_obj', 'obj_goal'), default='eef_obj', help='geometry that opens --dvd-phase-gate. eef_obj is the coffee-era ||eef-obj|| < --dvd-held-mm, which fires on only 3-6%% of threading frames. obj_goal uses ||obj-goal|| < --dvd-gate-mm, the measured sign change in the DVD gradient (REACH -0.160, INSERT +0.059 against a critic reference).')"
+    ]
+   },
+   {
+    "why": "bug fix kept from the supplementary release: '%' escaped in the --value-nets help, without which --help raises in the research tree",
+    "live_lines": 1,
+    "live_sha256": "860498f67370f3d1b23aa3a8f11dea73ab8d1b9f6fd3659fa8e6a9d72353e705",
+    "new": [
+     "    parser.add_argument('--value-nets', type=int, default=0, help='keep only the first K seeds of the loaded V ensemble (0 = all, unchanged). Saves about 1%% of a chunk; the cost is that best-of-N loses the ensemble spread it ranks and gates with.')"
+    ]
+   },
+   {
+    "why": "module not shipped: seghead_wm / latent56 / --seg-obs / --latent-obs are refused at argument parsing, replacing the removed imports",
+    "live_lines": 0,
+    "live_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "new": [
+     "    if config.dvd_dynamics in ('seghead_wm', 'latent56') or config.seg_obs or config.latent_obs:",
+     "        parser.error('the seghead_wm / latent56 world models are not part of this release')"
+    ]
+   }
+  ],
+  "value_model.py": [
+   {
+    "why": "module not shipped: the impalav V architecture imported seghead.ImpalaV; no shipped V directory has an 'arch' of that kind",
+    "live_lines": 17,
+    "live_sha256": "9fe8f5213dcd8d50e59e496f3b86293c983ab738b05e4e82602cef7536b4e6f7",
+    "new": []
+   }
+  ]
+ }
+}
