@@ -1,0 +1,7 @@
+af8ba3aba926d54df4164ad4bdcc5ac9accf302d
+branch  campaign/2026-09-14-proprio-head-square-hammer
+repo    online_rl_mimicgen (the research repository; same GitHub owner as this repository)
+date    2026-09-30 (the commit that added --async-eval-* to baselines/dsrl_dino.py)
+state   every run of the campaign was launched from this commit with a clean working tree for online_rl_mimicgen/,
+        0811/ and lerobot_env_mimicgen/ (each run's wandb metadata records it)
+read    2026-10-12, from .git/HEAD of the research tree

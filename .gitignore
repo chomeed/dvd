@@ -19,3 +19,12 @@ logs/
 .netrc
 .env
 *.log
+# source data, archives, environments and leftovers
+*.h5
+*.hdf5
+*.bin
+*.tar*
+*.gz
+nohup.out
+.venv/
+*.egg-info/

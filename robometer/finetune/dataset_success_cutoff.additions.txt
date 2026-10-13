@@ -1,0 +1,8 @@
+mimicgen_threading_d0_train_seg_rfm,0.95
+mimicgen_threading_d0_test_seg_rfm,0.95
+mimicgen_square_d0_train_seg_rfm,0.95
+mimicgen_square_d0_test_seg_rfm,0.95
+mimicgen_hammer_cleanup_train_seg_rfm,0.95
+mimicgen_hammer_cleanup_test_seg_rfm,0.95
+mimicgen_square_d1_train_seg_rfm,0.95
+mimicgen_square_d1_test_seg_rfm,0.95
