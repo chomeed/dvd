@@ -29,8 +29,8 @@ export PYTHONDONTWRITEBYTECODE=1           # leave no __pycache__ in the reposit
 PY=${PYTHON:-python}
 
 SCRIPTS=(configs/test_configs.py rl/test_source_parity.py rl/test_legacy.py rl/test_cpu_parity.py
-         pipeline/test_pool_mqattn.py pipeline/test_dino_wm.py pipeline/test_recipes.py pipeline/test_offline_data.py
-         pipeline/test_eval_tools.py pipeline/test_bon16_parity.py)
+         pipeline/test_pool_mqattn.py pipeline/test_dino_wm.py pipeline/test_recipes.py pipeline/test_prior_recipe.py
+         pipeline/test_offline_data.py pipeline/test_eval_tools.py pipeline/test_bon16_parity.py)
 # a test script that exists but is not listed above would silently never run
 for f in "$HERE"/*/test_*.py; do
   case " ${SCRIPTS[*]} " in *" ${f#"$HERE"/} "*) ;; *) echo "tests/run_all.sh: ${f#"$HERE"/} is not in SCRIPTS" >&2; exit 2;; esac

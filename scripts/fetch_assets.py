@@ -12,8 +12,10 @@ What a tier holds (each tier includes the ones before it; sizes are for all four
   train       run RL cells                                                                         about 41 GB more
               the whole demo dataset and the task's online RoboMeter teacher LoRA (9.4 GB each; needed by the
               TD + distill cells only: --skip teacher leaves them out)
-  regenerate  refit world models and V from the prior's rollouts                                   about 11 GB more
-              the success / failure rollout datasets, the RoboMeter score tables, the offline square_d1 seg LoRA
+  regenerate  refit world models and V from the prior's rollouts, or retrain the priors            about 11 GB more
+              the success / failure rollout datasets, the RoboMeter score tables, the offline square_d1 seg LoRA.
+              Retraining a prior needs nothing more than the train tier's demo dataset and the eval tier's CLIP:
+              its 9-D training set is a local build (prior/train_prior.sh), listed here
 
 --task        square_d0 square_d1 threading_d0 hammer_cleanup_d1, or all [default]
 --only / --skip   comma-separated groups: base dataset prior wm value teacher rollouts scores cache runs
@@ -34,7 +36,8 @@ Every item is one of
                          revision the reference runs used is printed next to it
   derive                 made locally from a downloaded item: the square_d1 prior's 9-D state fix
                          (scripts/make_square_d1_statefix.py; run automatically after the download)
-  build                  made locally by a command of this repository (pixel caches, frame caches); only reported
+  build                  made locally by a command of this repository (pixel caches, frame caches, the priors' 9-D
+                         training sets); only reported
   unpublished            exists on the reference machine only; reported with what replaces it, never an error
 
 Several repositories are private: log in first with an account that can read them (`hf auth login`, or HF_TOKEN).
@@ -71,6 +74,7 @@ TASKS = {
         rollouts="mimicgen_square_d0_224x224_mtdit_flow_40k", success_rev="68707f4c72b6125b5886c8934b5e7b10937ce962",
         failure_rev="4bb156e59b94af7abf2192483429dc4bc4fba409", success_mb=67.2, failure_mb=165.0,
         lora="robometer-4b-lora-square-d0-seg", lora_rev="2d350c78a5ad2f348c22269359b2e1163a0f1158", lora_private=False,
+        demo_private=True, success_private=False, failure_private=False,  # Hub visibility on 2026-11-07
         mc_ran=True, pixel_gb=46.2, frames_gb=16.9),
     "square_d1": dict(
         prior="square_d1_45k_statefix", step="045000", prior_repo="mimicgen_square_d1_flow_matching_prior_45k",
@@ -80,6 +84,7 @@ TASKS = {
         rollouts="mimicgen_square_d1_224x224_mtdit_flow_45k", success_rev="ed9241f1c81cb0bf4e7ab173ffd9d9527352aa3e",
         failure_rev="9e12ebc87f8de6b766dadb504a31988b734143c2", success_mb=79.9, failure_mb=171.6,
         lora="robometer-4b-lora-square-d1", lora_rev="8dafd9137629d01504117d0146186dcbed758d28", lora_private=True,
+        demo_private=True, success_private=False, failure_private=True,  # Hub visibility on 2026-11-07
         mc_ran=True, pixel_gb=45.9, frames_gb=17.6),
     "threading_d0": dict(
         prior="threading_d0_55k_statefix", step="055000", prior_repo="mimicgen_threading_d0_flow_matching_prior_55k_statefix",
@@ -89,6 +94,7 @@ TASKS = {
         rollouts="mimicgen_threading_d0_224x224_mtdit_flow_55k", success_rev="0cd0bd2dddabcf3ef9ab775f4012cffbce808e52",
         failure_rev="a8960a5c0f9d3ba372c03c6030f2821c135405e6", success_mb=81.9, failure_mb=149.5,
         lora="robometer-4b-lora-threading-d0-seg", lora_rev="602e7cac5f850605e3b3cf71a8641caf6fe8b667", lora_private=False,
+        demo_private=True, success_private=True, failure_private=True,  # Hub visibility on 2026-11-07
         mc_ran=False, pixel_gb=67.6, frames_gb=18.8),
     "hammer_cleanup_d1": dict(
         prior="hammer_cleanup_d1_35k_statefix", step="035000",
@@ -99,9 +105,13 @@ TASKS = {
         rollouts="mimicgen_hammer_cleanup_d1_224x224_mtdit_flow_35k", success_rev="9a0233786867b6430129ae0caa5015cbf9605b42",
         failure_rev="dbd1af4a88630c2fed14401a9919514ed08b70ce", success_mb=146.4, failure_mb=243.3,
         lora="robometer-4b-lora-hammer-cleanup-seg", lora_rev="037f662e74b36658fcbb266487bcd1c9ad1a5e52", lora_private=False,
+        demo_private=False, success_private=False, failure_private=True,  # Hub visibility on 2026-11-07
         mc_ran=True, pixel_gb=86.4, frames_gb=24.0),
 }
 UNFIXED_SQUARE_D1 = "square_d1_45k"                  # where the published (un-fixed) square_d1 prior is kept
+# The prior's training set: the demo dataset with observation.state cut to 9 dims (prior/state9_dataset.py). MB of its
+# data/ and meta/ as built on 2026-11-07; the videos are hardlinks to the demo dataset's (copies across file systems).
+STATE9_MB = {"square_d0": 92.4, "square_d1": 89.4, "threading_d0": 140.7, "hammer_cleanup_d1": 164.2}
 SEG_LORA = dict(name="robometer-4b-lora-square-d1-seg-c095", rev="9701d9eedccce15f167fed7ac05aa0d423d26cab")
 # The base models every run loads by name, with the revision and the files the reference machine's cache holds.
 BASE_MODELS = (
@@ -172,8 +182,8 @@ def table() -> list[Item]:
                         repo=demo, repo_type="dataset", revision=t["demo_rev"], folder="meta", mb=t["meta_mb"],
                         note="meta/stats.json is the state scaler of every evaluator"))
         out.append(Item(train_up, "dataset", task, "demo dataset (1000 episodes)", "repo", "DATA_ROOT", demo, repo=demo,
-                        repo_type="dataset", revision=t["demo_rev"], mb=t["demo_mb"],
-                        note="state scaler, expert buffer, source of the pixel cache"))
+                        repo_type="dataset", revision=t["demo_rev"], mb=t["demo_mb"], private=t["demo_private"],
+                        note="state scaler, expert buffer, source of the pixel cache and of the prior's training set"))
         if task == "square_d1":
             unfixed = f"priors/{UNFIXED_SQUARE_D1}/checkpoints/{t['step']}/pretrained_model"
             out.append(Item(every, "prior", task, "frozen prior as published (un-fixed, 26-D state)", "repo", "CKPT_ROOT",
@@ -211,7 +221,8 @@ def table() -> list[Item]:
         for split in ("success", "failure"):
             out.append(Item(regen, "rollouts", task, f"prior rollouts, {split} (100 episodes)", "repo", "DATA_ROOT",
                             f"{t['rollouts']}_{split}", repo=f"{t['rollouts']}_{split}", repo_type="dataset",
-                            revision=t[f"{split}_rev"], mb=t[f"{split}_mb"], note="frame cache, world model, V fit"))
+                            revision=t[f"{split}_rev"], mb=t[f"{split}_mb"], private=t[f"{split}_private"],
+                            note="frame cache, world model, V fit"))
         out.append(Item(regen, "scores", task, "RoboMeter score table (pv4 and mc recipes)", "file", "CKPT_ROOT",
                         f"rm_scores/{task}/predictions.parquet", repo=v_repo, revision=t["v_rev"],
                         folder="data/predictions.parquet", mb=0.13, private=True))
@@ -226,6 +237,10 @@ def table() -> list[Item]:
             out.append(Item(regen, "teacher", task, "segmented LoRA (offline rescoring for pv4_seg)", "repo", "CKPT_ROOT",
                             f"robometer/{SEG_LORA['name']}", repo=SEG_LORA["name"], revision=SEG_LORA["rev"], mb=9442.8,
                             private=True, note="teacher square_d1_seg; no cell distils from it online"))
+        out.append(Item(regen, "dataset", task, "9-D state copy of the demo dataset (prior training only)", "build",
+                        "DATA_ROOT", f"{demo}_robotstate9", mb=STATE9_MB[task],
+                        note=f"TASK={task} STAGE=data bash prior/train_prior.sh   (CPU, seconds; needs the whole demo "
+                             f"dataset; videos hardlinked)"))
         out.append(Item(regen, "cache", task, "prior-rollout frame cache", "build", "CACHE_ROOT",
                         f"wm_frames/{task}_frames_u8.npy", mb=t["frames_gb"] * 1000,
                         note=f"WS_TASK={task} python dinowm/build_cache.py   (about 30 s; needs both rollout datasets)"))

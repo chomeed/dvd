@@ -7,11 +7,11 @@
 #                    value found in the environment (another checkout's env.sh was sourced in this shell) is replaced
 #                    with one warning line, so that a script never runs another checkout's code
 #   ASSET_ROOT       parent of the asset roots                                   [$CODE_ROOT/assets]
-#   DATA_ROOT        LeRobot datasets: demos and prior rollouts                  [$ASSET_ROOT/datasets]
+#   DATA_ROOT        LeRobot datasets: demos, their 9-D copies, prior rollouts   [$ASSET_ROOT/datasets]
 #   CKPT_ROOT        priors/ wm/ value/ robometer/ rm_scores/                    [$ASSET_ROOT/checkpoints]
-#   CACHE_ROOT       pixel_cache/ wm_frames/ dsrl_demo_store/                    [$ASSET_ROOT/cache]
+#   CACHE_ROOT       pixel_cache/ wm_frames/ dsrl_demo_store/ hf_datasets/       [$ASSET_ROOT/cache]
 #   SPOOL_ROOT       RoboMeter request/response directories, one per task        [$ASSET_ROOT/spool]
-#   RUNS_ROOT        run directories <run name>/ and logs/                       [$ASSET_ROOT/runs]
+#   RUNS_ROOT        run directories <run name>/, logs/, prior_train/, smoke/     [$ASSET_ROOT/runs]
 #   THIRD_PARTY      third-party checkouts (environment.md)                      [$CODE_ROOT/third_party]
 #   MIMICGEN_ROOT    NVlabs/mimicgen checkout                                    [$THIRD_PARTY/mimicgen]
 #   TASK_ZOO_ROOT    ARISE-Initiative/robosuite-task-zoo checkout                [$THIRD_PARTY/robosuite-task-zoo]
@@ -39,10 +39,11 @@
 #   TRAIN_ONLINE_DRYRUN, RUN_PRINT_ARGV, DISTILL   scripts/run.sh
 #   EVAL_BON16, EVAL_ARGS, MIN_AGE, MAX_TRIES      scripts/eval_loop.sh
 #   DATASET, OUT     python -m online_rl_mimicgen.pixel_cache (scripts/build_pixel_cache.sh TASK sets both)
-#   SMOKE_STEPS, SMOKE_SAVE, SMOKE_EVAL_EPISODES, SMOKE_WARMUP_CHUNKS   scripts/smoke_train.sh
+#   SMOKE_STEPS, SMOKE_SAVE, SMOKE_EVAL_EPISODES, SMOKE_WARMUP_CHUNKS   scripts/smoke_train.sh (SMOKE_STEPS also prior/train_prior.sh)
+#   HF_DATASETS_CACHE   prior/train_prior.sh STAGE=train: the datasets library's Arrow cache [$CACHE_ROOT/hf_datasets]
 #   WS_TASK          dinowm/ and value/ scripts (mandatory there)
 #   LIVE_TREE, LEGACY_RUNS   tests/ (optional inputs from the reference machine)
-# Switches of a single script in dinowm/, value/, robometer/ or eval/ are listed in that script's header.
+# Switches of a single script in prior/, dinowm/, value/, robometer/ or eval/ are listed in that script's header.
 
 _here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 if [ -n "${CODE_ROOT:-}" ] && [ "$CODE_ROOT" != "$_here" ] && ! [ "$CODE_ROOT" -ef "$_here" ]; then

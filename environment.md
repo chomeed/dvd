@@ -28,6 +28,7 @@ What one run needs (measured on the reference machine while several runs shared 
 | DSRL Q | not measured (same gate) | 65 / 79 GiB | 22-34 h |
 | RoboMeter teacher | 11 GiB | 2.3 GiB | - |
 | one best-of-16 eval (100 episodes) | 12 GiB free was the reference daemon's requirement | 10 GiB budgeted | 10-45 min, by task |
+| one prior training (`prior/train_prior.sh`, 60k steps) | 39.3 GiB peak allocated in the released runs (one B200) | not measured at batch 64 (a CPU check at batch 2 peaked at 5 GiB) | about 3.5-4 h without in-loop evaluation (the released runs took 8.8-10.4 h with it); square_d0's 40k steps about 2.3 h, estimated |
 
 Disk, from file sizes on the reference machine (decimal GB):
 
@@ -40,6 +41,7 @@ Disk, from file sizes on the reference machine (decimal GB):
 | the campaign with only the last checkpoint of each run | 28 GB |
 | published assets (section 5) | 5 GB to evaluate, 47 GB to train (38 of them the four teacher LoRAs), 57 GB to regenerate |
 | DSRL demo stores; frame caches (regeneration only) | 3.4 GB; 77 GB |
+| a prior-training run (section 6) | 2.5 GB per checkpoint (1.0 weights, 1.5 optimiser state; measured): 30 GB for a 60k run (12 checkpoints), 10 GB for square_d0 (4); its 9-D training set 89-164 MB with the videos hardlinked, 0.5-1.2 GB more where they have to be copied |
 
 So the whole campaign needs about 960 GB if nothing is deleted and about 320 GB if intermediate checkpoints are
 removed as their evaluations arrive. Nothing in this repository deletes a checkpoint. A checkpoint is read again
@@ -75,7 +77,7 @@ The versions that decide numerical behaviour:
 |---|---|---|
 | torch / torchvision | 2.11.0 / 0.26.0 | the PyPI wheels are the CUDA 13.0 builds (`torch.__version__` is `2.11.0+cu130`); triton 3.6.0 for `torch.compile` |
 | torchcodec / av | 0.11.1 / 15.1.0 | video decoding of the LeRobot datasets, with the system ffmpeg 6.1.1 |
-| lerobot | 0.6.2 at commit `4aaff99be4a1d81568c08c8f0296b41b40c99ec4` | the frozen prior is its in-tree `multi_task_dit` policy; installed unmodified |
+| lerobot | 0.6.2 at commit `4aaff99be4a1d81568c08c8f0296b41b40c99ec4` | the frozen prior is its in-tree `multi_task_dit` policy; installed unmodified; `prior/train_prior.sh` trains with it (section 6) |
 | transformers / tokenizers | 5.5.4 / 0.22.2 | DINOv2-S trunk, CLIP encoders of the prior |
 | diffusers / accelerate / safetensors | 0.40.0 / 1.14.0 / 0.8.0 | |
 | huggingface_hub / datasets | 1.29.0 / 4.8.5 | |
@@ -83,7 +85,7 @@ The versions that decide numerical behaviour:
 | mujoco / gymnasium | 3.2.7 / 1.3.0 | |
 | robosuite | 1.4.1 | see section 3 |
 | pandas / pyarrow / h5py | 2.3.3 / 25.0.1 / 3.16.0 | h5py is imported by robosuite |
-| wandb | 0.29.0 | |
+| wandb | 0.29.0 | has no `Run.get_url`, which LeRobot's own trainer calls: `prior/lerobot_train.py` adds it back (section 6) |
 
 Base models read by name from the Hugging Face cache at start-up (`HF_HOME`, default `~/.cache/huggingface`), with
 the snapshots the reference runs used: `facebook/dinov2-small` at `ed25f3a31f01632728cabb09d1542f84ab7b0056` (world
@@ -242,17 +244,20 @@ before, and puts every repository or folder at exactly the path of the table, re
 |---|---|---|
 | `eval` | evaluating the base prior or a checkpoint | 5.3 GB: the two base models (into the Hugging Face cache), `meta/` of each demo dataset, the priors, both world models and the V directories per task |
 | `train` | running RL cells | 41 GB more: the whole demo datasets (3.6 GB) and the four online teacher LoRAs (9.4 GB each, TD + distill cells only; `--skip teacher` leaves them out) |
-| `regenerate` | refitting world models and V | 11 GB more: the prior-rollout datasets, the score tables, the offline square_d1 seg LoRA |
+| `regenerate` | refitting world models and V, retraining the priors | 11 GB more: the prior-rollout datasets, the score tables, the offline square_d1 seg LoRA. Retraining a prior downloads nothing more than the `train` tier's demo dataset and the `eval` tier's CLIP; its 9-D training set is listed as a local build |
 
 Each repository is fetched at the revision recorded on 2026-10-12 (`--latest` takes its head); the files installed
 on the reference machine are those revisions, checked by SHA-256 for every dataset, prior, world model, V
 directory and score table, and for the adapters and heads of the LoRAs. `--check [--sha256]` repeats that
 comparison on any machine.
 
-**Login.** Private as of 2026-10-12: the square_d1, threading_d0 and hammer_cleanup_d1 priors, all four
-`*_dinowm_ph` world-model repositories, all four `v_dino_robometer_pred_progress_*` repositories and the two
-square_d1 LoRAs. Public: the twelve datasets, the square_d0 prior, the other three LoRAs and the two base models.
-Without a login a private repository answers "not found". `hf auth login` (huggingface_hub 1.x; older versions:
+**Login.** Private on the Hub (checked 2026-11-07): the square_d1, threading_d0 and hammer_cleanup_d1 priors, all four
+`*_dinowm_ph` world-model repositories, all four `v_dino_robometer_pred_progress_*` repositories, the two square_d1
+LoRAs, three of the four demo datasets (square_d0, square_d1, threading_d0) and four of the eight rollout datasets
+(square_d1 failure, threading_d0 success and failure, hammer_cleanup_d1 failure). Public: the hammer_cleanup_d1 demo
+dataset, the other four rollout datasets, the square_d0 prior, the other three LoRAs and the two base models.
+`scripts/fetch_assets.py --dry-run` marks every private item. Without a login a private repository answers
+"not found". `hf auth login` (huggingface_hub 1.x; older versions:
 `huggingface-cli login`) stores a token under `HF_HOME`; `HF_TOKEN=<token>` in the environment works as well. The
 account must have read access to `$HF_NAMESPACE`. The RoboMeter environment (section 4) reads the same `HF_HOME`.
 
@@ -276,8 +281,8 @@ account must have read access to `$HF_NAMESPACE`. The RoboMeter environment (sec
 | `$SPOOL_ROOT/<task>/` | teacher request / response files | created by the teacher |
 | `$RUNS_ROOT/<run name>/` | `config.json`, `metrics.jsonl`, `checkpoints/`, `evals/`; `$RUNS_ROOT/logs/`; `$RUNS_ROOT/smoke/` | written by the runs |
 
-Inputs of the offline pipeline only (frame cache -> world model -> scores -> V; `dinowm/`, `robometer/`, `value/`).
-No RL cell and no evaluator reads them:
+Inputs of the offline pipeline only (prior; frame cache -> world model -> scores -> V; `prior/`, `dinowm/`,
+`robometer/`, `value/`). No RL cell and no evaluator reads them:
 
 | path | content | source |
 |---|---|---|
@@ -286,6 +291,9 @@ No RL cell and no evaluator reads them:
 | `$CKPT_ROOT/rm_scores/<task>/predictions.parquet` | RoboMeter scores of the rollouts, 12,800 rows; target of the `pv4` recipe and row set of the `mc` recipe (`value/fit_v.sh`) | `v_dino_robometer_pred_progress_<task>`, file `data/predictions.parquet` |
 | `$CKPT_ROOT/rm_scores/square_d1_seg/`, `rm_scores/threading_d0_seg/` | the rescoring behind the two `pv4_seg` V directories | **unpublished**. threading_d0_seg holds the scores of `rm_scores/threading_d0` in another row order; square_d1_seg comes from the segmented LoRA. Rescore with `robometer/score_rollouts.py --rows` |
 | `$CKPT_ROOT/robometer/robometer-4b-lora-square-d1-seg-c095/` | the segmented square_d1 LoRA (teacher `square_d1_seg`), offline rescoring only | LoRA repo of the same name |
+| `$DATA_ROOT/mimicgen_<task>_224x224_robotstate9/` | a prior's training set: the demo dataset with `observation.state` cut to its first 9 dims, videos hardlinked (92 / 89 / 141 / 164 MB) | built locally: `TASK=<task> STAGE=data bash prior/train_prior.sh` (section 6) |
+| `$RUNS_ROOT/prior_train/<run>/` | a LeRobot run directory: `checkpoints/<step>/{pretrained_model,training_state}`, `checkpoints/last`, `wandb/` | written by `TASK=<task> STAGE=train bash prior/train_prior.sh` |
+| `$CACHE_ROOT/hf_datasets/` | the datasets library's Arrow cache of the parquet files LeRobot reads during prior training | written by the same command (`HF_DATASETS_CACHE`) |
 
 Which cell loads what: DICE-RL DVD loads the continued world model on square_d0, square_d1 and threading_d0 and the
 BASE one on hammer_cleanup_d1, with the plain `_pv4` V everywhere. DSRL loads the continued world model on all four
@@ -326,7 +334,49 @@ reproduces the reference machine's fixed prior byte for byte (all 9 files).
 - **Checkpoints, `config.json` and eval results of the reference runs.** `reference/results_2026-10-12.md` holds
   their numbers; none of them can be re-evaluated elsewhere until they are published.
 
-## 6. What was not verified
+## 6. Retraining the priors
+
+Optional: every run loads the released priors. `prior/train_prior.sh` (header; `AGENTS.md` section 5.5) retrains one
+in the main environment of section 2, with nothing installed beyond `requirements.txt`.
+
+```bash
+bash scripts/fetch_assets.sh --tier train --task <task> --only dataset,base     # the demo dataset at its training revision, and CLIP
+TASK=<task> STAGE=data bash prior/train_prior.sh                                # the 9-D training set, CPU, seconds
+G=<gpu> TASK=<task> STAGE=train bash prior/train_prior.sh                       # --print first: the exact command
+TASK=<task> STAGE=install bash prior/train_prior.sh                             # only after the released prior was moved away
+```
+
+**Datasets.** Each prior was trained on its task's demo dataset at exactly the revision `scripts/fetch_assets.py`
+pins (square_d0 `7214ccb9`, square_d1 `85ac2ae2`, threading_d0 `f8d4e769`, hammer_cleanup_d1 `7477bc23`; 1000
+episodes each, 153,477 / 152,400 / 224,508 / 286,847 frames, state 23 / 26 / 37 / 37 dims). square_d1's first
+upload (`05ddb438`, the same parquet files with other video renders) was superseded before its prior was trained.
+The training set is a local copy with the state cut to its first 9 dims (table of section 5); the copy square_d0's
+prior was trained on is on no Hub repository and was rebuilt this way.
+
+**Versions.** The recipe uses the pinned LeRobot 0.6.2 and its CLIP (`openai/clip-vit-base-patch16`, section 2).
+The released runs did not:
+
+| prior | trainer | environment |
+|---|---|---|
+| square_d0 | stock LeRobot from its main branch, a commit of 2026-08-07 to 08-19 with the configuration schema of 0.6.2 | not recorded (the run logged nothing) |
+| square_d1, threading_d0, hammer_cleanup_d1 | a LeRobot fork reporting 0.6.0 plus `--policy.n_state_dims` (source not available); `python -m lerobot.scripts.lerobot_train` | CPython 3.12.13, torch 2.11.0, transformers 5.5.4, diffusers 0.35.2, accelerate 1.14.0, datasets 4.8.5, huggingface_hub 1.24.0, numpy 2.2.6, draccus 0.10.0, torchcodec 0.11.1, wandb 0.27.2; a 72-CPU host with 2 B200, one per run |
+
+The `multi_task_dit` configuration and modeling files are byte-identical in lerobot 0.6.0 and at the pinned commit;
+its processor file differs by a refactor that builds the same steps. Everything around the policy (data loading,
+the training loop, wandb) is 0.6.2's. Two consequences, both handled by the wrapper:
+
+- wandb 0.29.0 has no `Run.get_url`, which LeRobot 0.6.2's wandb logger calls when it starts; every
+  `python -m lerobot.scripts.lerobot_train` run with wandb on stops there. `prior/lerobot_train.py` adds the method
+  back (it returns `Run.url`) and then runs the same trainer.
+- The released runs' in-loop evaluation needed the fork: with the state cut in the dataset, LeRobot would feed the
+  env's 26 / 37-D state to a 9-D policy. It is dropped; score checkpoints with `eval/eval_prior.py --prior`.
+
+**Hardware and time.** One GPU with about 40 GB free: the released runs peaked at 39.3 GiB allocated on a B200 and
+trained at 0.16 s per step plus 0.05-0.08 s of data loading (8 spawned workers, 72 CPUs), about 3.5-4 h for 60k
+steps; their 8.8-10.4 h included 5.2-6.5 h of in-loop evaluation. Host RAM at batch 64 with 8 workers was not
+measured. Disk: section 1.
+
+## 7. What was not verified
 
 - `requirements.txt` has not been installed into a clean environment. Verified: the versions equal the reference
   environment's freeze, every PyPI pin resolves (`pip install --dry-run --no-deps`), and the code imports and
@@ -336,7 +386,8 @@ reproduces the reference machine's fixed prior byte for byte (all 9 files).
 - The RoboMeter environment was not rebuilt from the lock file, and the `uv sync` invocation that built the
   reference one was not recorded; compare the versions above after installing.
 - No training step of this repository has been executed: the reference machine's memory was committed to the
-  campaign. `scripts/smoke_train.sh` (a 2000-step run of one cell with a checkpoint and an evaluation) was checked
+  campaign. Prior training was run on CPU only (2 steps at batch 2 without data workers, a resume, the install, one
+  chunk sampled by the RL code from the result); no step ran on a GPU, at batch 64 or with 8 data workers. `scripts/smoke_train.sh` (a 2000-step run of one cell with a checkpoint and an evaluation) was checked
   by dry run only, for all 36 task x arm combinations; its first real run on a new machine is the test.
 - `scripts/fetch_assets.py`: every repository, folder and file name was checked against the Hub and against the
   files installed on the reference machine, and the download path was exercised on the small JSON files of 16

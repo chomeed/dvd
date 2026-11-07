@@ -1,6 +1,6 @@
 # tests/
 
-Ten plain Python scripts. Each one prints what it measured and asserts; each check is a `test_*` function and ends
+Eleven plain Python scripts. Each one prints what it measured and asserts; each check is a `test_*` function and ends
 in one line `PASS <name>`, `SKIP <name>: <reason>` or `FAIL <name>`. They run on CPU, write only into temporary
 directories and start no training. One of them, `pipeline/test_bon16_parity.py`, needs a GPU and input files and is
 described separately below. Test scripts are named relative to `tests/` in this file; every other path is relative
@@ -37,10 +37,11 @@ bash tests/run_all.sh
 
 What runs: the argv of all 32 cells x 2 budgets against the golden files, the DICE-RL configuration resolved key
 by key, the legacy rename tables and converter, the guards on the trainers' checkpoint loaders, the readout and
-data-rule unit tests on synthetic inputs, the recipe wrappers, the refusal of a missing or wrong `WS_TASK`, and the
-hygiene scan. What SKIPs: everything that reads a weight file, a dataset, a reference run, the research tree or the
-DSRL fork. Last measured: 42 pass, 28 skip, 0 fail, in about a minute (the totals grow as tests are added;
-what must hold is `0 fail`).
+data-rule unit tests on synthetic inputs, the recipe wrappers (the prior's included, resolved by LeRobot itself
+where it needs no released file), the refusal of a missing or wrong `WS_TASK`, and the hygiene scan. What SKIPs:
+everything that reads a weight file, a dataset, a reference run, the research tree or the DSRL fork. Last measured
+(2026-11-07): 49 pass, 31 skip, 0 fail, in about a minute (the totals grow as tests are added; what must hold is
+`0 fail`).
 
 ## Mode 2: reference machine (or any machine with the assets in place)
 
@@ -57,8 +58,8 @@ export HYGIENE_EXTRA_WORDS=<root directory name>,<unix user name>
 bash tests/run_all.sh
 ```
 
-Last measured on the reference machine, with `LEGACY_RUNS` naming the two directories of the 69 reference runs:
-69 pass, 1 skip (the GPU test), 0 fail, in about four minutes on CPU.
+Last measured on the reference machine (2026-11-07), with `LEGACY_RUNS` naming the two directories of the 69
+reference runs: 79 pass, 1 skip (the GPU test), 0 fail, in about four minutes on CPU.
 
 A machine that has the published assets but neither the research tree nor the reference runs sets the first three
 lines only. That is the pre-flight to run before the first training run on a new machine.
@@ -70,7 +71,7 @@ lines only. That is the pre-flight to run before the first training run on a new
 | `ASSET_ROOT`, `DATA_ROOT`, `CKPT_ROOT`, `CACHE_ROOT` | all | the asset roots of `scripts/env.sh`. Tests look for priors, world models, V directories, score tables, frame-cache metadata and demo datasets below them and SKIP when they are absent |
 | `THIRD_PARTY`, `DSRL_ROOT` | `configs/test_configs.py`, `rl/test_legacy.py`, `pipeline/test_eval_tools.py` | the DSRL checkout with its stable-baselines3 fork: without it nothing that imports the DSRL modules can run |
 | `MIMICGEN_ROOT`, `TASK_ZOO_ROOT`, `ROBOSUITE_ROOT` | the same three, through the imports of the DSRL modules | the simulator checkouts (`environment.md`, section 3) |
-| `HF_HOME`, `HF_OFFLINE` | tests that build a world model | the cache must hold `facebook/dinov2-small` |
+| `HF_HOME`, `HF_OFFLINE` | tests that build a world model; `pipeline/test_prior_recipe.py` | the cache must hold `facebook/dinov2-small`, and `openai/clip-vit-base-patch16` for the prior's architecture check |
 | `LIVE_TREE` | `rl/test_source_parity.py`, `rl/test_legacy.py`, `rl/test_cpu_parity.py` | root of the pre-rename research tree this code was cut from (commit in `reference/LIVE_COMMIT`). Only the reference machine has it |
 | `LEGACY_RUNS` | `configs/test_configs.py`, `rl/test_legacy.py`, `pipeline/test_eval_tools.py` | `:`-separated directories that hold run directories written by the research code (`<dir>/<run>/config.json`, `checkpoints/`); a run directory itself is accepted |
 | `HYGIENE_EXTRA_WORDS` | `pipeline/test_recipes.py` | comma-separated words that must not appear anywhere in the repository outside `reference/`, e.g. the reference machine's root directory name and Unix user name. The test file itself spells no such word |
@@ -88,6 +89,7 @@ lines only. That is the pre-flight to run before the first training run on a new
 | `pipeline/test_pool_mqattn.py` | the pv4 readout: exact reduction to the single-query pool, widths, per-view scopes, guards, blob round trip | every released readout below `$CKPT_ROOT/value` reloads with the shape the RL code expects (4 queries per view, 768 wide) | |
 | `pipeline/test_dino_wm.py` | frame-to-context conversion, the mean / meanmax pooling layouts, `dino_wm` imports without the policy stack | load, gradient path, freezing and one encode-predict-pool pass on a production world model (`CKPT_ROOT` or `DINO_WM_CKPT`, and `facebook/dinov2-small` in the cache) | |
 | `pipeline/test_recipes.py` | `dinowm/train_wm.sh`, `value/fit_v.sh` and `robometer/serve.sh` print the released recipes; no offline entry point accepts a missing, unknown or contradicted `WS_TASK`; `python -m online_rl_mimicgen.pixel_cache` has a working `--help` and a one-line usage error; hygiene scan of the whole repository outside `reference/` | the printed recipes equal the metadata stored with the released world models and V directories | |
+| `pipeline/test_prior_recipe.py` | `prior/train_prior.sh` prints, per task and stage, the released run's argv with exactly the documented substitutions and removals (`prior/released_runs.json`), and the smoke variant changes only budget, directory and job name; bad inputs, missing, meta-only or 26-D training sets and run directories without `checkpoints/last` are refused, one with it gives the resume argv, a finished one is left alone; one release step and one training revision per task across the wrapper, `scripts/fetch_assets.py`, `configs/tasks.sh`, `rl/` and the golden configs; `prior/state9_dataset.py` and `prior/install_prior.py` on synthetic inputs; LeRobot resolves the resume argv (main environment); LeRobot's wandb logger fails under the pinned wandb without `prior/lerobot_train.py`'s shim and starts with it | the released priors (`CKPT_ROOT`): LeRobot resolves each task's argv to its `train_config.json` except exactly the listed keys. With their demo `meta/` (`DATA_ROOT`): the 9-D statistics equal the released normaliser and `install_prior.py --verify` passes; with CLIP in the cache as well: the recipe builds the released tensors (names, shapes), `config.json`, postprocessor and normaliser | |
 | `pipeline/test_offline_data.py` | context windows, scored rows and their order, the Monte Carlo target, on synthetic data | the same rules on the released frame-cache metadata, score tables and V directories | |
 | `pipeline/test_eval_tools.py` | `eval/compare_evals.py`; the prior's text table and as-run defaults (task id string, duplicated frame); `eval/eval_bon16.py` upgrades an old checkpoint, resolves its asset paths, refuses missing or unused overrides, unknown config keys and a depth-2 best-of-N checkpoint | how `eval_dsrl_ckpt` finds `config.json` for a linked checkpoint and with `--config` (needs the DSRL fork and the simulator imports) | `LEGACY_RUNS`: the best-of-16 scorer of one real DVD checkpoint and one real Q checkpoint is built on CPU |
 | `pipeline/test_bon16_parity.py` | prints SKIP (see below) | | |
@@ -120,7 +122,8 @@ G=0 bash -c 'source scripts/env.sh
 
 - No training step is executed by any test: the update loops of `train_online` and `dsrl_dino`, `torch.compile`,
   the in-run evaluation subprocess of `dsrl_dino` and the RoboMeter spool exchange are covered by source parity,
-  resolved-configuration equality and CPU parity of the building blocks only.
+  resolved-configuration equality and CPU parity of the building blocks only. The prior's training loop is covered by
+  configuration equality and by building the policy, not by a step (`AGENTS.md`, section 5.5, says what ran by hand).
 - CPU parity is fp32 on one thread. The campaign runs the world model under bf16 autocast on a GPU; that path is
   exercised by the GPU checks above, for inference only.
 - The guards on `--resume` and `--dvd-dynamics-init` are tested as functions and by reading the source for the call

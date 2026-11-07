@@ -59,8 +59,8 @@ runs listed in `configs/campaign/`. Section 12 is a glossary of the short names 
 (pv4, dpinit, bon16, ...).
 
 **Where commands run.** Every command is typed in the repository root, in a shell where the main Python environment
-is active (`python` is taken from `PATH`). The shell wrappers (`scripts/*.sh`, `dinowm/train_wm.sh`,
-`value/fit_v.sh`, `robometer/serve.sh`, `tests/run_all.sh`) source `scripts/env.sh` themselves. Before a bare
+is active (`python` is taken from `PATH`). The shell wrappers (`scripts/*.sh`, `prior/train_prior.sh`,
+`dinowm/train_wm.sh`, `value/fit_v.sh`, `robometer/serve.sh`, `tests/run_all.sh`) source `scripts/env.sh` themselves. Before a bare
 `python ...` command, run `source scripts/env.sh` once in that shell; to pin a GPU, `export G=<index>` before that.
 Text in `<angle brackets>` is a placeholder.
 
@@ -86,11 +86,11 @@ The minimal production path: what a campaign run, its evaluation, or the regener
 | evaluators | `eval/`, `rl/online_rl_mimicgen/baselines/eval_dsrl_ckpt.py` |
 | the campaign as configuration: 7 arm files, one per-task asset table, 2 run lists | `configs/` |
 | environment file, launchers, asset fetcher, results table | `scripts/` |
-| offline pipeline that made the world models and value functions | `dinowm/`, `robometer/`, `value/` |
+| offline pipeline that made the priors, world models and value functions | `prior/`, `dinowm/`, `robometer/`, `value/` |
 | tests | `tests/` |
 | verbatim provenance snapshots of the reference machine | `reference/` |
 
-It is about 145 text files and under 3 MB. Weights, datasets, caches and run outputs are never committed
+It is about 155 text files and under 3 MB. Weights, datasets, caches and run outputs are never committed
 (`.gitignore`); they live under the asset roots of `scripts/env.sh`.
 
 ### 2.2 What is deliberately left out
@@ -105,8 +105,11 @@ It is about 145 text files and under 3 MB. Weights, datasets, caches and run out
 - **The critic study.** The study behind the claim that `gamma^8 V(f(s, a))` ranks nearby out-of-distribution actions
   better than `Q(s, a)` is kept verbatim under `reference/critic_ood_study/` and is not ported: its scripts use the
   old names and the reference machine's run directories. `reference/README.md` says what porting it would take.
-- **Training of the frozen priors.** The priors are inputs (each checkpoint carries its own `train_config.json`).
-  Fine-tuning a RoboMeter teacher is optional and documented in `robometer/finetune/NOTES.md`.
+- **The original prior-training code.** Three of the four priors were trained with a LeRobot 0.6.0 fork
+  (`--policy.n_state_dims`) whose source is not available, and with an in-loop simulator evaluation that picked the
+  release step. `prior/train_prior.sh` retrains all four with the pinned, unmodified LeRobot on a 9-D copy of each
+  demo dataset: the same network and normaliser, not the same weights, and without the in-loop evaluation (section
+  5.5). Fine-tuning a RoboMeter teacher is optional and documented in `robometer/finetune/NOTES.md`.
 - **Pruning of `train_online.py`.** Deferred on purpose (section 2.5).
 
 ### 2.3 Which research code this is
@@ -193,7 +196,8 @@ An episode ends at success or after 400 primitive steps (500 for hammer). The re
 
 **The frozen prior.** Per task, one language-conditioned flow-matching DiT (diffusion transformer) policy:
 LeRobot's built-in `multi_task_dit` policy with CLIP ViT-B/16 image and text encoders. It sees 2 frames of both
-cameras and a 9-D proprioceptive state (end-effector position 3, quaternion 4, gripper 2) and plans 32 actions. The RL
+cameras and a 9-D proprioceptive state (end-effector position 3, quaternion 4, gripper 2) and plans 32 actions; its
+training recipe is `prior/train_prior.sh` (section 5.5). The RL
 code samples a plan with 10 Euler integration steps and executes 8 actions of it as one *chunk*, then replans. One
 decision is therefore one chunk of 8 primitive steps. The prior's weights never change; everything below learns
 around it.
@@ -292,6 +296,12 @@ variables; the entry points under `rl/` document theirs through `--help`.
 | `eval/eval_bon16.py` (E) | the DICE-RL evaluation protocol: best of 16, 100 episodes |
 | `eval/eval_prior.py` (E) | the frozen prior alone; also measures the two input quirks of section 8 |
 | `eval/compare_evals.py` (E) | paired comparison of two result files; `--require-identical` for replays |
+| **`prior/`** | offline, optional: the frozen prior (the released priors are assets) |
+| `prior/train_prior.sh` (E) | `STAGE=data`, `train`, `install`: the 9-D training set, the released runs' training command, the release step installed where RL looks |
+| `prior/state9_dataset.py` (E) | the demo dataset with `observation.state` cut to its first 9 dims; `--check` |
+| `prior/install_prior.py` (E) | copy one step of a training run to `$CKPT_ROOT/priors/<prior>` and check it; `--verify` an installed prior |
+| `prior/lerobot_train.py` | LeRobot's trainer plus one wandb compatibility shim (section 9) |
+| `prior/released_runs.json` | how the four released priors were trained: argv, versions, release step and why it was chosen |
 | **`dinowm/`** | offline: world model |
 | `dinowm/build_cache.py` (E) | decode a task's prior rollouts into the frame cache |
 | `dinowm/train_wm.sh` (E), `dinowm/train_wm_ph.py` | train the base or the continued world model with the released recipe |
@@ -303,7 +313,7 @@ variables; the entry points under `rl/` document theirs through `--help`.
 | `robometer/finetune/` | optional LoRA fine-tuning: `train_lora.sh`, `make_rbm_from_seg.py`, `segment_square.py`, `segment_hammer.py`, `NOTES.md` |
 | **`value/`** | offline: V |
 | `value/fit_v.sh` (E), `value/fit_v_mqattn.py` | fit a V directory with one of the three released recipes |
-| **`tests/`** | `run_all.sh` (E) and ten test scripts in `configs/`, `rl/`, `pipeline/` (section 10) |
+| **`tests/`** | `run_all.sh` (E) and eleven test scripts in `configs/`, `rl/`, `pipeline/` (section 10) |
 | `tests/configs/golden/` | the resolved configuration of all 32 cells, generated from the reference code; never edited by hand |
 | `tests/rl/source_parity_allowlist.json` | every difference between `rl/` and the research tree, with its reason |
 | **`reference/`** | verbatim snapshots: `LIVE_COMMIT`, `launchers/`, `eval_env.sh`, `results_2026-10-12.md`, `critic_ood_study/`. Never imported or executed; the only place with the reference machine's paths and the old names |
@@ -318,7 +328,7 @@ sit in the run directory too.
 
 ## 5. End-to-end pipeline
 
-In order. Step 5.5 is optional: the released world models and V directories are downloaded in step 5.2.
+In order. Step 5.5 is optional: the released priors, world models and V directories are downloaded in step 5.2.
 
 ### 5.1 Environment and third-party checkouts
 
@@ -384,8 +394,8 @@ bash scripts/fetch_assets.sh --tier train --check                    # [run] com
 The sizes are the output of the dry run. `--task`, `--only` and `--skip` narrow a download, `--check --sha256` also
 hashes every file, and `--help` is the full description. A download that was interrupted continues on the next call.
 `environment.md` section 5 has the complete layout table, and says which repositories are private (three
-of the four priors, all world models, all V directories, the two square_d1 LoRAs): without a login that can read
-them, the Hub answers "not found".
+of the four priors, all world models, all V directories, the two square_d1 LoRAs, three demo datasets and four rollout
+datasets): without a login that can read them, the Hub answers "not found".
 
 **Not published (as of 2026-10-12), and what each blocks:**
 
@@ -411,7 +421,8 @@ python scripts/make_square_d1_statefix.py --verify $CKPT_ROOT/priors/square_d1_4
 ```
 
 On the reference machine the script's output was byte-identical to the prior the runs used (all 9 files), and
-`--verify` passes on that prior. The other three priors are published already fixed.
+`--verify` passes on that prior. threading_d0 and hammer_cleanup_d1 were trained the same way and are published
+already fixed; square_d0 was trained on a 9-D dataset and never needed the fix (section 5.5).
 
 ### 5.4 Pixel caches and demo stores
 
@@ -447,12 +458,77 @@ directories, state scaler, a pixel cache of the wrong shape). PASS may still pri
 (pixel cache not built yet, demo dataset fetched with `meta/` only). `SKIP ... NO ASSETS FOUND - nothing was
 checked` is not a pass.
 
-### 5.5 Optional: regenerate world models and V
+### 5.5 Optional: regenerate the priors, world models and V
 
-The released world models, score tables and V directories are the reference: none of the three trainings is
+The released priors, world models, score tables and V directories are the reference: none of these trainings is
 bit-reproducible on a GPU, so a regenerated artifact is statistically equivalent, not identical. The recipes are
 provenance, and the way to extend the method to a new task. Every wrapper has `--print`, which shows the exact
-command; `tests/pipeline/test_recipes.py` checks those commands against the metadata stored with the released files.
+command; `tests/pipeline/test_prior_recipe.py` and `tests/pipeline/test_recipes.py` check those commands against
+the metadata stored with the released files.
+
+**Priors.** Each task's prior was trained once, and every rollout set, world model, score table, V directory and
+teacher LoRA of the campaign was made from that released checkpoint. `prior/train_prior.sh` (its header is the
+manual) retrains one with the released recipe, in three stages:
+
+```bash
+TASK=<task> STAGE=data bash prior/train_prior.sh                     # [run] the 9-D training set: CPU, seconds, 89-164 MB
+TASK=<task> STAGE=train bash prior/train_prior.sh                    # [dry] one GPU, 39.3 GiB peak, about 3.5-4 h for 60k steps on a B200
+TASK=<task> STAGE=install bash prior/train_prior.sh                  # [run] the release step to $CKPT_ROOT/priors/<prior>; refuses an existing one
+python eval/eval_prior.py --task <task> --prior $RUNS_ROOT/prior_train/<run>/checkpoints/<step>/pretrained_model --out <json>   # [dry]
+python prior/install_prior.py --task <task> --verify $CKPT_ROOT/priors/<prior> --dataset $DATA_ROOT/mimicgen_<task>_224x224   # [run] on the four released priors
+```
+
+`STAGE=data` and `STAGE=install` ran as printed into scratch roots (install with a 2-step checkpoint of the CPU check
+below standing in for the release step). `STAGE=train` was checked by `--print` and on CPU: LeRobot resolves its argv
+to the released `train_config.json` (section 10), and the square_d1 argv with `--batch_size=2 --num_workers=0`
+substituted ran 1 step, saved, resumed to step 2 and saved again; that checkpoint installs and the RL code's
+`FrozenPolicyPrior` samples a chunk from it. No GPU step and no full run has been executed.
+
+| task | run (`--job_name`, under `$RUNS_ROOT/prior_train/`) | steps / save / log | release step | installed as | the released run |
+|---|---|---|---|---|---|
+| square_d0 | `mtdit_square_d0_robotstate9` | 40000 / 10000 / 200 | 040000, the last | `square_d0_40k_rs9` | stock LeRobot on a 9-D copy of the dataset; logged nothing |
+| square_d1 | `mimicgen_square_d1_mtdit_flow_60k_robotstate9` | 60000 / 5000 / 100 | 045000 | `square_d1_45k_statefix` | the fork; wandb `h4un4nqy`, 8.8 h (5.2 h of it in-loop evaluation) |
+| threading_d0 | `mimicgen_threading_d0_mtdit_flow_60k_robotstate9` | 60000 / 5000 / 100 | 055000 | `threading_d0_55k_statefix` | the fork; wandb `ftetrxgs`, 8.8 h (5.3 h) |
+| hammer_cleanup_d1 | `mimicgen_hammer_cleanup_d1_mtdit_flow_60k_robotstate9` | 60000 / 5000 / 100 | 035000 | `hammer_cleanup_d1_35k_statefix` | the fork; wandb `63sv4uig`, 10.4 h (6.5 h) |
+
+Common to all four: LeRobot's `multi_task_dit` policy with `--policy.objective=flow_matching` and every other policy
+field at its default, batch 64, seed 1000, 8 data workers, Adam 2e-5 with a cosine schedule over the whole run, fp32,
+one GPU. `prior/released_runs.json` records each run: its argv, the package versions, the dataset revision, the
+release step and why it was chosen, the SHA-256 of the released `train_config.json` and weights.
+
+Facts that are easy to get wrong:
+
+- **The fork and the 9-D copy.** square_d1, threading_d0 and hammer_cleanup_d1 were trained by a LeRobot 0.6.0 fork
+  on the full 26 / 37-D demo datasets with `--policy.n_state_dims=9`: the policy kept the first 9 state dims after
+  normalising them. Their published checkpoints then needed the "statefix" (section 5.3). The fork's source is not
+  available. The recipe trains the pinned, unmodified LeRobot on a copy of the demo dataset whose `observation.state`
+  and its statistics are cut to the first 9 dims, which is how square_d0 was trained. Min-max normalisation is
+  elementwise, so the network sees the same inputs. On CPU the recipe builds all 465 released tensors with their names
+  and shapes, the released `config.json` and the released normaliser bit for bit (section 10), and its output needs
+  no state fix. What differs from the fork runs is the LeRobot version around the policy (0.6.0 to 0.6.2; the
+  `multi_task_dit` configuration and modeling files are byte-identical), wandb 0.27 to 0.29, and the machine.
+- **No in-loop evaluation.** The fork runs scored 10 episodes in the simulator every 1000 steps with LeRobot's own
+  protocol (24 actions per plan, 100 integration steps, the env's instruction string). Those noisy numbers picked
+  the release steps and are not comparable with `eval/eval_prior.py`. The recipe drops `--env.*`: LeRobot would feed
+  the env's 26 / 37-D state to the 9-D policy and fail. The inert `--env_eval_freq` / `--eval.*` flags stay, as the
+  DSRL TD-only arms keep their distillation flags (section 8). This also saves 5.2-6.5 h per run.
+- **The release step is not the last one** (except square_d0), and the run must keep its original length: the
+  cosine schedule spans all of it, so a 45k-step run does not reproduce the 45k checkpoint of a 60k run.
+  hammer_cleanup_d1's 35k was chosen on purpose as a mid-performing policy (50 % in-loop; 80 % at 54k) so that its
+  rollouts split into balanced success and failure sets. For a retrained prior, score the release step and its 5k
+  neighbours with `eval/eval_prior.py --prior` and compare with 74 / 38 / 64 / 40 %; no acceptance band exists, since
+  each prior comes from one run.
+- **Install only the release step.** `find_latest_checkpoint`, which the trainers and evaluators apply to
+  `--base-output`, prefers `checkpoints/last`, so a LeRobot run directory used as the prior would load its final step.
+  `STAGE=install` copies one step to the directory `configs/tasks.sh` names and refuses if it exists: that is where
+  the released prior lives. For square_d1 the name still ends in `_statefix`, and `scripts/fetch_assets.py --check`
+  then reports the derived square_d1 item as failing (its weights are not the released ones).
+- **A retrained prior invalidates everything downstream.** The released rollout datasets, frame caches, world
+  models, score tables, V directories and teacher LoRAs all come from the released prior's behaviour. RL on a
+  retrained prior with the released world model and V is a new configuration; regenerating them starts with
+  `record_rollouts.py` / `aggregate_rollouts.py`, for which this repository has no recipe wrapper.
+
+**World models and V.**
 
 ```bash
 WS_TASK=<task> python dinowm/build_cache.py                          # [dry] frame cache of the prior rollouts, about 30 s, 17-24 GB
@@ -465,7 +541,8 @@ TASK=<task> RECIPE=<recipe> bash value/fit_v.sh                      # [dry] <re
 
 **These commands write to the released files' own paths and overwrite them without asking** (the world model at the
 end of training, the score table and the V directory at once; `--resume` finds no state file for a downloaded model
-and starts from scratch). To keep the reference inputs, regenerate under another root (`CKPT_ROOT=<scratch>/checkpoints`
+and starts from scratch). The prior commands are the exception: `STAGE=data` and `STAGE=install` refuse an existing
+target, and LeRobot refuses an existing run directory unless it resumes. To keep the reference inputs, regenerate under another root (`CKPT_ROOT=<scratch>/checkpoints`
 with the inputs each step reads linked into it) or move the released directory away first.
 `bash scripts/fetch_assets.sh --tier regenerate --check --sha256` shows whether a released file was replaced; the
 asset test and a plain `--check` compare names and sizes only and will not notice.
@@ -622,7 +699,7 @@ Climb it in order; each step is much cheaper than the next and catches a differe
 
 | step | command | checked | what to expect |
 |---|---|---|---|
-| 1. code and environment | `bash tests/run_all.sh` on a fresh clone, then the import check of section 5.1 | `[run]` | `0 fail` (42 pass, 28 skip in about a minute on a clone without the third-party checkouts; fewer checks skip once they are installed; what must hold is `0 fail`); the six version numbers of section 5.1 |
+| 1. code and environment | `bash tests/run_all.sh` on a fresh clone, then the import check of section 5.1 | `[run]` | `0 fail` (49 pass, 31 skip in about a minute on a clone without the third-party checkouts; fewer checks skip once they are installed; what must hold is `0 fail`); the six version numbers of section 5.1 |
 | 2. assets | `bash scripts/fetch_assets.sh --tier train --check`, `python tests/configs/test_configs.py`, then `bash tests/run_all.sh` again | `[run]` | `test_installed_assets` PASS without "NOT READY" lines for the task you will run; fewer SKIPs than in step 1, still `0 fail` |
 | 3. the frozen prior | `python eval/eval_prior.py --task <task> --out <json>` for each task (one GPU, 100 episodes) | `[dry]` | 74 / 38 / 64 / 40 % on square_d0 / square_d1 / threading_d0 / hammer_cleanup_d1 (`eval/eval_prior.py`). On the reference machine a rerun matches the stored result episode for episode; on other hardware expect the rate within a few episodes |
 | 4. a reference checkpoint | `python eval/eval_bon16.py --ckpt <ckpt> --out <new.json>` or `bash scripts/eval_dsrl.sh --ckpt <ckpt> --out <new.json>`, then `python eval/compare_evals.py <stored.json> <new.json>` | `[dry]`, `[dry]`, `[run]` | the stored rate within evaluation noise. Not possible today: no reference checkpoint is published (section 11) |
@@ -649,7 +726,12 @@ GiB for DICE-RL Q; not known for DSRL; header of `scripts/smoke_train.sh`).
 - Assets: every Hub repository, folder and file name of `scripts/fetch_assets.py` exists; the installed datasets,
   priors, world models, V directories and score tables equal the Hub by SHA-256; the state-fix script reproduces the
   square_d1 prior byte for byte.
-- The whole suite with the reference machine's inputs: 69 pass, 1 skip (the GPU test), 0 fail.
+- Prior recipe (2026-11-07): LeRobot resolves the argv of `prior/train_prior.sh` to each released prior's
+  `train_config.json` except exactly the listed keys; built from the 9-D copy of each demo dataset, the recipe gives
+  all 465 tensors with the released names and shapes, the released `config.json`, postprocessor and normaliser; the
+  four released priors pass `prior/install_prior.py --verify`. On CPU the training command ran 2 steps with a resume
+  in between (batch 2, no data workers), and the RL code sampled a chunk from the installed result.
+- The whole suite with the reference machine's inputs: 79 pass, 1 skip (the GPU test), 0 fail.
 
 **Not verified:**
 
@@ -664,6 +746,9 @@ GiB for DICE-RL Q; not known for DSRL; header of `scripts/smoke_train.sh`).
 - The offline pipeline (frame cache, world-model training, scoring against a live teacher, V fits, LoRA
   fine-tuning) was not executed from this repository; its wrappers were checked against the released artifacts'
   metadata and its data rules by tests.
+- No prior was trained from this repository: no GPU step, no step at batch 64, no run with 8 spawned data workers.
+  The 9-D-copy route equals the fork in network, normaliser and inputs, not in LeRobot version (0.6.0 to 0.6.2 around
+  the policy) or machine, and the release steps were chosen by an in-loop evaluation that is not reproduced.
 - Another GPU model, driver or CUDA version. The world model runs under bfloat16 (bf16) autocast, DSRL enables TF32 matmuls, the six
   DICE-RL DVD cells on square_d0, square_d1 and threading_d0 use `torch.compile`, and no deterministic-algorithm switch is set anywhere: expect statistical, not
   bitwise, agreement across machines.
@@ -838,6 +923,35 @@ Smaller as-run facts, all encoded in `configs/` and checked by the tests:
   existed lack its key, and the parser's default today is not always what such a run used (the activation, for
   example). `eval_dsrl_ckpt` fills in the old behaviour; a hand-built argv does not.
 
+### Prior training
+
+- **Never start a run from a released `train_config.json`** (`--config_path`). The three fork files fail the pinned
+  LeRobot on `n_state_dims`; with that field deleted they load, but their 26 / 37-D `input_features` and full-state
+  dataset build a different, full-state prior without any warning. square_d0's file loads and names a dataset path
+  that exists nowhere. `prior/train_prior.sh` passes plain flags.
+- **`python -m lerobot.scripts.lerobot_train` with wandb on stops at start in this environment**: LeRobot 0.6.2 calls
+  `wandb.run.get_url()`, which wandb 0.29.0 no longer has (`AttributeError`, in every wandb mode). The wrapper runs
+  `prior/lerobot_train.py`, the same trainer with `Run.get_url` added back. The released runs had wandb 0.27.2.
+- **LeRobot goes online when the wandb mode is unset**, and treats any value but `online`, `offline` and `disabled`
+  as online. The wrapper always passes `--wandb.mode=$WANDB_MODE` and refuses other values.
+- **LeRobot refuses an existing `--output_dir`** unless it resumes (`--config_path=<checkpoints/last>/train_config.json
+  --resume=true`, which the wrapper adds by itself). A run that stopped before its first checkpoint has nothing to
+  resume from: remove its directory.
+- **Hugging Face snapshot files are relative links into `blobs/`.** A dataset copied or linked as links is dangling
+  in its new place; `prior/state9_dataset.py` always links or copies the resolved file.
+- **The datasets library writes an Arrow cache of every parquet file LeRobot reads**, by default inside `HF_HOME`.
+  The wrapper sets `HF_DATASETS_CACHE=$CACHE_ROOT/hf_datasets`; a check by hand that builds a LeRobot dataset should
+  set it too.
+- **`eval.batch_size` defaults to a number derived from the CPU count** (`min(0.7 x os.cpu_count(), episodes, 64)`).
+  It is inert without an env, but it is part of `train_config.json`, so square_d0's argv pins it to its as-run 50.
+- **lerobot_train imports every pip-installed `lerobot_*` package at start** (`register_third_party_plugins`). The
+  reference machine has two editable ones (an older copy of `lerobot_env_mimicgen` and an unused
+  `lerobot_policy_multi_task_dit_patch_policy`, which no prior uses); a clean environment of this repository has
+  none. The `envs/` package of this repository comes first on `PYTHONPATH` either way.
+- **Data loading.** The released runs read 8 spawned workers' batches on a 72-CPU host at 0.05-0.08 s per step; the
+  16-CPU reference machine was not measured. Where the temporary directory has a long path, the spawned workers fail
+  with `AF_UNIX path too long` and the run hangs: keep `TMPDIR` short.
+
 ### Metrics
 
 - **Collection success is not evaluation success.** The `episode_success` value in `kind=train` rows is a rolling
@@ -884,7 +998,7 @@ bash tests/run_all.sh                    # [run] every script, one summary line 
 python tests/configs/test_configs.py     # [run] one script on its own (after `source scripts/env.sh`)
 ```
 
-The tests are ten plain Python scripts (no pytest). Each check prints `PASS`, `SKIP` or `FAIL`. They run on CPU,
+The tests are eleven plain Python scripts (no pytest). Each check prints `PASS`, `SKIP` or `FAIL`. They run on CPU,
 write only into temporary directories and start no training. **SKIP means an input was absent and nothing was
 verified**; the line names the input. It is expected on a fresh clone and is a to-do on a machine that is about to
 train. `tests/README.md` lists the variables that turn SKIPs into checks.
@@ -898,11 +1012,13 @@ train. `tests/README.md` lists the variables that turn SKIPs into checks.
 | `tests/pipeline/test_pool_mqattn.py` | the pv4 readout's math and that released readouts reload with the expected shape | nothing; more with V directories |
 | `tests/pipeline/test_dino_wm.py` | world-model loading, gradient path, freezing, one encode-predict-pool pass | a world model and DINOv2-S in the cache |
 | `tests/pipeline/test_recipes.py` | the offline wrappers print the released recipes; a missing or wrong `WS_TASK` is refused; no machine-specific path, address or credential anywhere outside `reference/` | nothing; more with released artifacts |
+| `tests/pipeline/test_prior_recipe.py` | `prior/train_prior.sh` prints the released runs' argv with only the documented substitutions, refuses bad inputs and resumes; the release step and the training revision agree everywhere; the 9-D dataset and install rules; the wandb shim; with the released priors: LeRobot resolves the argv to their `train_config.json` except exactly the listed keys, and the recipe builds their tensors, `config.json`, postprocessor and normaliser | LeRobot (main environment); more with the priors, demo `meta/` and CLIP in the cache |
 | `tests/pipeline/test_offline_data.py` | the context-window, row-order and Monte Carlo target rules | nothing; more with frame caches and score tables |
 | `tests/pipeline/test_eval_tools.py` | `eval/compare_evals.py`; the prior's as-run defaults; `eval/eval_bon16.py` upgrades old checkpoints and refuses bad overrides | nothing; more with the DSRL checkout, reference runs |
 | `tests/pipeline/test_bon16_parity.py` | `eval/eval_bon16.py` assembles the trainer's scorer correctly; always SKIP in `run_all.sh` | a GPU and a decision dump (`tests/README.md`) |
 
-Last measured: fresh clone 42 pass, 28 skip, 0 fail; reference machine with all inputs 69 pass, 1 skip, 0 fail.
+Last measured (2026-11-07): fresh clone 49 pass, 31 skip, 0 fail; reference machine with all inputs 79 pass, 1 skip,
+0 fail.
 
 **The three gates.** Any change to the RL code or the configs must keep these three green; together they are the
 evidence that this repository is the code that produced the reference results.
@@ -940,14 +1056,21 @@ None of the gates executes a training step (section 6).
    impossible and the reference numbers exist only as a table.
 4. Give whoever reproduces the work read access to the private repositories of `$HF_NAMESPACE`.
 5. Regenerate `reference/results_2026-10-12.md` with `scripts/results_table.py` once the DICE-RL runs have finished.
+6. Optional: publish the four 9-D training sets of the priors (`mimicgen_<task>_224x224_robotstate9`), which would
+   turn `STAGE=data` into a download, and archive the LeRobot 0.6.0 fork that trained three of the priors, if a copy
+   still exists.
 
 **First things to do on the new machine, because they were never done:**
 
-6. Install the environment from `requirements.txt` and the checkout block, and rebuild the RoboMeter environment
+7. Install the environment from `requirements.txt` and the checkout block, and rebuild the RoboMeter environment
    from `robometer/env/uv.lock`; compare versions with `environment.md`.
-7. Run `scripts/smoke_train.sh` for one cell of each method. It has never been executed anywhere.
-8. Run one seeded cell and compare it with the reference (step 6 of the ladder). A short GPU comparison of this
+8. Run `scripts/smoke_train.sh` for one cell of each method. It has never been executed anywhere.
+9. Run one seeded cell and compare it with the reference (step 6 of the ladder). A short GPU comparison of this
    code against the research tree on the same cell and seed is the one missing piece of direct evidence.
+10. If priors are to be retrained: `SMOKE_STEPS=200 TASK=square_d0 STAGE=train bash prior/train_prior.sh` once
+    (about 40 GB of GPU memory, minutes), then one full run, scoring its release step and the 5k neighbours with
+    `eval/eval_prior.py --prior` against 74 / 38 / 64 / 40 %. No training step of it has run on a GPU, and with one
+    run per task there is no acceptance band.
 
 **Untested paths of the tools:** a full download of a large item and its resume after an interruption
 (`scripts/fetch_assets.py`; LoRA weight shards were compared by name and size, not hashed); a namespace other than
@@ -965,7 +1088,9 @@ them at its first online start (`environment.md`, section 4).
 - No segmentation script exists for the threading_d0 and square_d1 teacher LoRAs, and the arguments used for the two
   segmenters that are shipped were not logged; those LoRAs can only be used as downloaded
   (`robometer/finetune/NOTES.md`).
-- The offline trainings (world model, V, LoRA) are not bit-reproducible; the released files are the reference.
+- The offline trainings (prior, world model, V, LoRA) are not bit-reproducible; the released files are the reference.
+- The LeRobot 0.6.0 fork that trained three of the priors is not available, nor is the in-loop evaluation that chose
+  their release steps; `prior/train_prior.sh` replaces both (section 5.5).
 
 ## 12. Glossary
 
@@ -991,7 +1116,8 @@ them at its first online start (`environment.md`, section 4).
 | best of 16, bon16, bo16 | the DICE-RL decision rule and evaluation protocol |
 | single draw | the DSRL evaluation protocol: one noise sample per chunk |
 | window mean, `win` | mean of a run's evaluations from 350k to 600k steps |
-| statefix | a prior whose config declares the 9-D state it was trained on |
+| statefix | a prior whose config declares the 9-D state it was trained on (a prior retrained by `prior/train_prior.sh` is natively 9-D and needs none) |
+| robotstate9, rs9 | a dataset or prior whose `observation.state` is the 9-D proprio block (end-effector position 3, quaternion 4, gripper 2); `mimicgen_<task>_224x224_robotstate9` is a prior's training set |
 | pixel cache | decoded demonstration frames of a task, one large `.npy` |
 | frame cache | decoded prior-rollout frames of a task (offline pipeline only) |
 | demo store | DSRL's demonstration chunks in the layout of its replay, with the prior's conditioning computed once |

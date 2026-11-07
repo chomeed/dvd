@@ -8,7 +8,7 @@ algorithms, **DICE-RL** (a residual actor plus best-of-16 selection over prior s
 the prior's noise space), and compared with a Q-critic baseline of each.
 
 The repository is the minimal production path of a larger research code base: the two trainers, the evaluators,
-the exact configuration of all 84 campaign runs, the offline pipeline that made the world models and value
+the exact configuration of all 84 campaign runs, the offline pipeline that made the priors, world models and value
 functions, a fetcher for the published assets, and tests that tie this code to the code that produced the results.
 It contains no weights or data.
 
@@ -37,6 +37,16 @@ not verified.
 
 One run needs 65 to 131 GiB of host RAM by its end, depending on the cell, and a DICE-RL run 13 to 37 GiB of GPU
 memory; a 600k-step run takes 8 to 34 hours (`environment.md`, section 1).
+
+The frozen priors are assets like the world models: every run loads the released ones. Retraining them is optional
+and follows the same pattern as the other offline stages (one wrapper whose `--print` shows the exact command):
+
+```bash
+TASK=square_d1 STAGE=train bash prior/train_prior.sh --print      # the released run's command; STAGE=data|train|install
+```
+
+`prior/train_prior.sh` reproduces each released prior's training configuration with the pinned LeRobot; a retrained
+prior is a different prior, not a copy (`AGENTS.md`, section 5.5; one GPU, about 4 hours per prior).
 
 ## Where to read on
 

@@ -1,0 +1,88 @@
+{
+  "about": [
+    "How the four released priors were trained: the record prior/train_prior.sh replays and tests/pipeline/test_prior_recipe.py checks it against.",
+    "Read on 2026-11-07 from the released checkpoints (train_config.json, config.json, README.md of each Hub repository) and, for the three runs that logged one, from the wandb run's metadata (argv, interpreter, host) and its stored requirements.txt.",
+    "argv is the command line exactly as recorded, except two machine paths written as <dataset root> and <output dir>. square_d0's run logged nothing: argv_reconstructed is the set of train_config.json values that differ from the defaults of the pinned LeRobot, written as flags.",
+    "train_config_sha256 / model_sha256: SHA-256 of the train_config.json and model.safetensors of the released checkpoint (the file the RL cells load; the state fix never edits either)."
+  ],
+  "fork": {
+    "what": "a LeRobot fork reporting version 0.6.0 whose only change is MultiTaskDiTConfig.n_state_dims: with --policy.n_state_dims=9 the observation encoder is built 9 wide and the normalised state is cut to its first 9 entries. Its source is not available. Its multi_task_dit configuration and modeling files are otherwise those of PyPI lerobot 0.6.0, which are byte-identical to the pinned 0.6.2 @ 4aaff99b.",
+    "launch": "python -m lerobot.scripts.lerobot_train",
+    "python": "CPython 3.12.13 (conda)",
+    "packages": ["lerobot==0.6.0 (the fork)", "torch==2.11.0", "torchvision==0.26.0", "transformers==5.5.4", "diffusers==0.35.2", "accelerate==1.14.0", "datasets==4.8.5", "huggingface_hub==1.24.0", "numpy==2.2.6", "draccus==0.10.0", "safetensors==0.8.0", "torchcodec==0.11.1", "av==15.1.0", "wandb==0.27.2"],
+    "host": "72 CPUs, 2 x NVIDIA B200 (one per run); not the reference machine of the RL campaign",
+    "env_plugin": "the in-loop evaluation loaded lerobot_env_mimicgen (this repository's envs/ package, older copy) through --env.discover_packages_path",
+    "statefix": "after training, config.json and policy_preprocessor.json were set to a 9-D state, n_state_dims removed and the normaliser's observation.state statistics cut to 9 entries; weights, postprocessor and train_config.json untouched (scripts/make_square_d1_statefix.py is that recipe for square_d1)"
+  },
+  "tasks": {
+    "square_d0": {
+      "prior": "square_d0_40k_rs9",
+      "hub_repo": "mimicgen_square_d0_mtdit_flow_40k_robotstate9",
+      "job_name": "mtdit_square_d0_robotstate9",
+      "steps": 40000, "save_freq": 10000, "log_freq": 200,
+      "release_step": "040000",
+      "selection": "the last step of the run; it had no in-loop evaluation",
+      "trainer": "stock LeRobot from its main branch (a commit of 2026-08-07 to 08-19); its train_config.json has exactly the field set of the pinned 0.6.2 @ 4aaff99b and loads in it unchanged",
+      "state": "dataset cut before training: chomeed/mimicgen_square_d0_224x224_robotstate9 (observation.state 23 -> 9), a local copy that is on no Hub repository",
+      "dataset": {"repo": "mimicgen_square_d0_224x224", "revision": "7214ccb9aabdc0bb8c1d3fc7e7907c6c2c4e6f5d", "state_dim": 23, "episodes": 1000, "frames": 153477},
+      "argv": null,
+      "argv_reconstructed": ["--dataset.repo_id=chomeed/mimicgen_square_d0_224x224_robotstate9", "--dataset.root=<dataset root>", "--output_dir=<output dir>", "--job_name=mtdit_square_d0_robotstate9", "--batch_size=64", "--num_workers=8", "--steps=40000", "--save_freq=10000", "--policy.type=multi_task_dit", "--policy.objective=flow_matching", "--policy.device=cuda", "--policy.push_to_hub=false", "--eval.batch_size=50"],
+      "argv_reconstructed_note": "flag order is not recorded. --eval.batch_size=50 is inert (no env, so no in-loop evaluation) and is LeRobot's own default on any host with 72 or more CPUs (os.cpu_count) (min(floor(0.7 x os.cpu_count()), n_episodes 50, 64)); it is written out so that the configuration resolves to the released one on any host",
+      "wandb": null,
+      "runtime_h": null, "gpu": null, "peak_gpu_memory_gib": null,
+      "train_config_sha256": "4400d9ae446f2b02ac8f68dd91cd63c67d4f335c2ef938f1d4e1f20adb487ef2",
+      "model_sha256": "3cdcdfee99e5c4ae1ac5c94a056bd38aa50cd22090a05d7d435b2a9269b0bd8c"
+    },
+    "square_d1": {
+      "prior": "square_d1_45k_statefix",
+      "hub_repo": "mimicgen_square_d1_flow_matching_prior_45k",
+      "job_name": "mimicgen_square_d1_mtdit_flow_60k_robotstate9",
+      "steps": 60000, "save_freq": 5000, "log_freq": 100,
+      "release_step": "045000",
+      "selection": "joint best of the 10-episode in-loop evaluation (40 % at 23k and 45k; 20 % at 44k and 46k)",
+      "trainer": "the fork (see fork)",
+      "state": "full 26-D dataset, --policy.n_state_dims=9; state fix afterwards (scripts/make_square_d1_statefix.py; the published repository holds the un-fixed checkpoint)",
+      "dataset": {"repo": "mimicgen_square_d1_224x224", "revision": "85ac2ae2a78b1158aef50a9ed5588621244556f6", "state_dim": 26, "episodes": 1000, "frames": 152400},
+      "argv": ["--dataset.repo_id=chomeed/mimicgen_square_d1_224x224", "--dataset.root=<dataset root>", "--output_dir=<output dir>", "--job_name=mimicgen_square_d1_mtdit_flow_60k_robotstate9", "--batch_size=64", "--num_workers=8", "--steps=60000", "--save_freq=5000", "--log_freq=100", "--policy.type=multi_task_dit", "--policy.objective=flow_matching", "--policy.device=cuda", "--policy.repo_id=chomeed/mimicgen_square_d1_mtdit_flow_60k_robotstate9", "--policy.push_to_hub=false", "--wandb.enable=true", "--wandb.disable_artifact=true", "--wandb.project=mimicgen_d0_baselines", "--policy.n_state_dims=9", "--env.type=mimicgen", "--env.task=square_d1", "--env.discover_packages_path=lerobot_env_mimicgen", "--env_eval_freq=1000", "--eval.batch_size=1", "--eval.n_episodes=10", "--eval.use_async_envs=false"],
+      "wandb": {"project": "mimicgen_d0_baselines", "run_id": "h4un4nqy", "started": "2026-08-14T15:54:13Z", "superseded_run": "nwq6fj12 (same argv on the first upload of the dataset, 05ddb438, whose videos were re-rendered as 85ac2ae2; 0-10 % in-loop success)"},
+      "runtime_h": 8.78, "in_loop_eval_h": 5.18, "gpu": "1 x NVIDIA B200", "peak_gpu_memory_gib": 39.3,
+      "logged_loss_at_release": 0.036,
+      "train_config_sha256": "c45bec2d98c17cd421b817b92b01f40bed25b45bd147376121f25dd323692988",
+      "model_sha256": "28143356f81cb125d5a15887a2123ca89e02ee01ba0d04f972b52510fea3f129"
+    },
+    "threading_d0": {
+      "prior": "threading_d0_55k_statefix",
+      "hub_repo": "mimicgen_threading_d0_flow_matching_prior_55k_statefix",
+      "job_name": "mimicgen_threading_d0_mtdit_flow_60k_robotstate9",
+      "steps": 60000, "save_freq": 5000, "log_freq": 100,
+      "release_step": "055000",
+      "selection": "joint best of the 10-episode in-loop evaluation (40 % at 49k, 53k and 55k; 10 % at 54k and 56k, 0 % from 57k on)",
+      "trainer": "the fork (see fork)",
+      "state": "full 37-D dataset, --policy.n_state_dims=9; state fix afterwards (published already fixed)",
+      "dataset": {"repo": "mimicgen_threading_d0_224x224", "revision": "f8d4e7697a8685ba6c98806bba6a99b32dc4f044", "state_dim": 37, "episodes": 1000, "frames": 224508},
+      "argv": ["--dataset.repo_id=chomeed/mimicgen_threading_d0_224x224", "--dataset.root=<dataset root>", "--output_dir=<output dir>", "--job_name=mimicgen_threading_d0_mtdit_flow_60k_robotstate9", "--batch_size=64", "--num_workers=8", "--steps=60000", "--save_freq=5000", "--log_freq=100", "--policy.type=multi_task_dit", "--policy.objective=flow_matching", "--policy.n_state_dims=9", "--policy.device=cuda", "--policy.repo_id=chomeed/mimicgen_threading_d0_mtdit_flow_60k_robotstate9", "--policy.push_to_hub=false", "--wandb.enable=true", "--wandb.disable_artifact=true", "--wandb.project=mimicgen_d0_baselines", "--env.type=mimicgen", "--env.task=threading_d0", "--env.discover_packages_path=lerobot_env_mimicgen", "--env_eval_freq=1000", "--eval.batch_size=1", "--eval.n_episodes=10", "--eval.use_async_envs=false"],
+      "wandb": {"project": "mimicgen_d0_baselines", "run_id": "ftetrxgs", "started": "2026-08-13T18:42:23Z"},
+      "runtime_h": 8.77, "in_loop_eval_h": 5.26, "gpu": "1 x NVIDIA B200", "peak_gpu_memory_gib": 39.3,
+      "logged_loss_at_release": 0.0695,
+      "train_config_sha256": "a8e5be800bf66403df7c749b611a94b871e4f37343cccbd64963abd12283e42a",
+      "model_sha256": "c94d867250f20d969742066b452e8310f9ec3d7cfa428a1a31afadaab658a059"
+    },
+    "hammer_cleanup_d1": {
+      "prior": "hammer_cleanup_d1_35k_statefix",
+      "hub_repo": "mimicgen_hammer_cleanup_d1_flow_matching_prior_35k_statefix",
+      "job_name": "mimicgen_hammer_cleanup_d1_mtdit_flow_60k_robotstate9",
+      "steps": 60000, "save_freq": 5000, "log_freq": 100,
+      "release_step": "035000",
+      "selection": "deliberately not the best checkpoint (80 % at 54k): 50 % at 35k (40 % at 34k, 20 % at 36k), chosen as a mid-performing policy so that its rollouts give balanced success and failure sets (Hub README)",
+      "trainer": "the fork (see fork)",
+      "state": "full 37-D dataset, --policy.n_state_dims=9; state fix afterwards (published already fixed)",
+      "dataset": {"repo": "mimicgen_hammer_cleanup_d1_224x224", "revision": "7477bc233b7031f4ebb0022e0fdbc6849510f44d", "state_dim": 37, "episodes": 1000, "frames": 286847},
+      "argv": ["--dataset.repo_id=chomeed/mimicgen_hammer_cleanup_d1_224x224", "--dataset.root=<dataset root>", "--output_dir=<output dir>", "--job_name=mimicgen_hammer_cleanup_d1_mtdit_flow_60k_robotstate9", "--batch_size=64", "--num_workers=8", "--steps=60000", "--save_freq=5000", "--log_freq=100", "--policy.type=multi_task_dit", "--policy.objective=flow_matching", "--policy.device=cuda", "--policy.repo_id=chomeed/mimicgen_hammer_cleanup_d1_mtdit_flow_60k_robotstate9", "--policy.push_to_hub=false", "--wandb.enable=true", "--wandb.disable_artifact=true", "--wandb.project=mimicgen_d0_baselines", "--policy.n_state_dims=9", "--env.type=mimicgen", "--env.task=hammer_cleanup_d1", "--env.discover_packages_path=lerobot_env_mimicgen", "--env_eval_freq=1000", "--eval.batch_size=1", "--eval.n_episodes=10", "--eval.use_async_envs=false"],
+      "wandb": {"project": "mimicgen_d0_baselines", "run_id": "63sv4uig", "started": "2026-08-16T04:38:08Z", "failed_attempts": "zpmy3hrt (in-loop evaluation crashed: robosuite_task_zoo missing), 39jbbsur (crashed at step 400)"},
+      "runtime_h": 10.44, "in_loop_eval_h": 6.47, "gpu": "1 x NVIDIA B200", "peak_gpu_memory_gib": 39.3,
+      "logged_loss_at_release": 0.042,
+      "train_config_sha256": "4558459160ea77d35164a2846cc255ce26fab64aa678bbc3ece50d3199effcd5",
+      "model_sha256": "2f64e188dcdf60c526f9da925257349b6845272474099799a62469a629d44fa1"
+    }
+  }
+}
