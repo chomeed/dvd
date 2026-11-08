@@ -292,6 +292,7 @@ variables; the entry points under `rl/` document theirs through `--help`.
 | `baselines/dsrl_demos.py`, `baselines/build_demo_store.py` (E) | demonstrations in the DSRL replay; build their store ahead of a run |
 | `baselines/eval_dsrl_ckpt.py` (E) | single-draw evaluation of a DSRL checkpoint |
 | **`envs/lerobot_env_mimicgen/`** | gym wrapper around the MimicGen tasks; found through `PYTHONPATH`, not pip-installed |
+| `envs/lerobot_env_mimicgen/README.md` | MimicGen setup summary: install, EGL, controller and camera settings, per-task state layout, datasets, task text, pitfalls |
 | `envs/maniskill3/README.md`, `envs/maniskill3/env.sh.example` | ManiSkill3 setup for LiftPegUpright-v1 / PegInsertionSide-v1 (separate conda env, Vulkan, demos, agentview camera); no wrapper code yet |
 | `envs/robotwin/README.md`, `envs/robotwin/requirements.txt` | RoboTwin 2.0 setup for open_laptop / handover_mic (separate conda env, cuRobo, OIDN, data conversion); no wrapper code yet |
 | **`eval/`** | |
