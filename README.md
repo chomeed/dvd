@@ -54,6 +54,7 @@ prior is a different prior, not a copy (`AGENTS.md`, section 5.5; one GPU, about
 |---|---|
 | `AGENTS.md` | the full guide: scope and provenance, the method, a map of every file, the pipeline with exact commands, the verification ladder, reference results, behaviours kept on purpose, known traps, tests, open gaps |
 | `environment.md` | installation, exact versions, third-party checkouts, the RoboMeter environment, where every asset comes from and goes, sizes, what was not verified |
+| `envs/maniskill3/README.md`, `envs/robotwin/README.md` | setting up the new-task simulators (ManiSkill3 LiftPegUpright / PegInsertionSide, RoboTwin 2.0 open_laptop / handover_mic): own conda envs, GPU rendering, demos, cameras, state/action/text, pitfalls |
 | `configs/README.md` | the campaign as a TASK x ARM matrix, and how to run one cell or the whole list |
 | `tests/README.md` | what each test proves, the two ways to run the suite, what SKIP means |
 | `reference/README.md` | verbatim snapshots of the reference machine (launchers, results table, the commit of the research code) |
